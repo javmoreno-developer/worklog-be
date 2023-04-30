@@ -1,0 +1,5 @@
+fastapi
+fastapi-security
+sqlalchemy
+uvicorn[standard]
+mysql-connector-python

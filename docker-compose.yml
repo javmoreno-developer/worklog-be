@@ -1,0 +1,35 @@
+version: '3'
+services:
+
+  debian:
+    image: debian:11
+    #restart: always
+
+  python:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    #restart: always
+    depends_on:
+      - debian
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app
+    environment:
+      - DB_HOST=host.docker.internal
+      - DB_USER=root
+      - DB_PASSWORD=""
+      - DB_NAME=worklog
+      - API_KEY=${API_KEY}
+    command: uvicorn main:app --host 0.0.0.0 --reload
+
+  node:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+    #restart: always
+    depends_on:
+      - debian  
+
+  
