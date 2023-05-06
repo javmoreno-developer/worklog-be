@@ -126,3 +126,10 @@ class Login(LoginBase):
     
     class Config:
         orm_mode = True
+
+# Agreement
+
+class AgreementTypeEnum(str, Enum):
+    FCT = 'fct',
+    DUAL = 'dual'
+    FCT_DUAL = 'both'
