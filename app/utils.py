@@ -62,32 +62,46 @@ def check_permission(profile: int, level: int):
         return "You can't do this opperation"
 
 
-def send_email(idUser: int,emailReceiver: str):
+def send_email(emailReceiver: str):
+    # Vemos si el correo existe como usuario
+    exist = False
+    user = check_user_by_email(emailReceiver)
+
+    if(len(user) != 0 ):
+        exist = True
+
+    
     # Configura los detalles del correo electrónico
-    sender_email = "javmoreno766@gmail.com"
-    sender_password = "fluyetbuhqxpicsv"
-    receiver_email = emailReceiver
-    subject = "Recuperar contraseña"
-    new_password = get_new_password()
-    body = "Nueva contraseña: {}". format(new_password)
+    if(exist):
+        sender_email = "javmoreno766@gmail.com"
+        sender_password = "fluyetbuhqxpicsv"
+        receiver_email = emailReceiver
+        subject = "Recuperar contraseña"
+        new_password = get_new_password()
+        body = "Nueva contraseña: {}". format(new_password)
 
-    # Configura el mensaje del correo electrónico
-    message = MIMEMultipart()
-    message["From"] = sender_email
-    message["To"] = receiver_email
-    message["Subject"] = subject
-    message.attach(MIMEText(body, "plain"))
+        # Configura el mensaje del correo electrónico
+        message = MIMEMultipart()
+        message["From"] = sender_email
+        message["To"] = receiver_email
+        message["Subject"] = subject
+        message.attach(MIMEText(body, "plain"))
 
-    # Configura el servidor SMTP y envía el correo electrónico
-    server = smtplib.SMTP("smtp.gmail.com", 587)
-    server.starttls()
-    server.login(sender_email, sender_password)
-    text = message.as_string()
-    server.sendmail(sender_email, receiver_email, text)
-    server.quit()
+        # Configura el servidor SMTP y envía el correo electrónico
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        text = message.as_string()
+        server.sendmail(sender_email, receiver_email, text)
+        server.quit()
 
-    reset_password(idUser,new_password)
-    return {"message": "Email sended"}
+        reset_password(user["idUser"],new_password)
+        
+        return {"message": "Email sended"}
+    else:
+        return {"message": "The user does not exist"}
+    
+
 
 def import_mysql_database(profileUser: int):
 
@@ -133,8 +147,22 @@ def reset_password(id: int,new_password: str):
 
         query, values = get_query_and_values("user", "idUser", id, {"password": new_password})
 
-        #sql = f"UPDATE module SET name='{module.name}',initials='{module.initials}',hours={module.hours},idUni={module.idUni} WHERE idMod={id}"
         cursor.execute(query,values)
         
         # Hacer commit de los cambios y cerrar la conexión
         do_commit(conn,cursor)
+
+
+def check_user_by_email(email: str):
+    conn, cursor = get_conn_and_cursor()
+    ## Get the entries
+    sql = f"SELECT * FROM user WHERE email='{email}'"
+
+    cursor.execute(sql)
+
+    result = cursor.fetchone()
+    row = {}
+    if result:
+        for i, column in enumerate(cursor.description):
+            row[column[0]] = result[i]
+    return row

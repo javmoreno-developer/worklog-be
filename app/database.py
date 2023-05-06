@@ -331,7 +331,7 @@ def login_from_db(auth: LoginCreate,profileUser: int):
     if((check_permission(profileUser,ProfileEnum.STUDENT) == True) or (check_permission(profileUser,ProfileEnum.TEACHER) == True)):
         conn, cursor = get_conn_and_cursor()
         ## Get the entries
-        sql = f"SELECT * FROM user WHERE email='{auth.email}' AND password={auth.password}"
+        sql = f"SELECT * FROM user WHERE email='{auth.email}' AND password='{auth.password}'"
 
         cursor.execute(sql)
 

@@ -96,10 +96,10 @@ async def get_profile(idAlumn: int,profileUser: int,api_key: str = Header(...)):
     return msg
 
 ## Database
-@app.post("/api/user/send-email/{idUser}")
-async def send_email_for_reset(email: EmailCreate,idUser: int,api_key: str = Header(...)):
+@app.post("/api/user/send-email")
+async def send_email_for_reset(email: EmailCreate,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = send_email(idUser,email.email)
+    msg = send_email(email.email)
     return msg
 
 @app.post("/api/db/import/{profileUser}")
