@@ -32,9 +32,10 @@ async def validate_api_key(api_key: str = Header(...)):
         raise HTTPException(status_code=401, detail="Invalid API key")
     
 async def validate_permissions(idUser: int, permissions: List[str]):
+    
     try:
         profile = get_profile_from_user(idUser)
-        if(str(profile) not in permissions or str(profile)!= ProfileEnum.ADMIN):
+        if(str(profile) not in permissions and str(profile)!= ProfileEnum.ADMIN):
             raise HTTPException(status_code=401, detail="Permission denied")
     except GetUserException as e:
         raise HTTPException(status_code=404, detail=f"{str(e)}")
@@ -42,41 +43,47 @@ async def validate_permissions(idUser: int, permissions: List[str]):
 ## Company
 
 @app.post("/api/company/add")
-async def add_company(company: CompanyCreate,profileUser: int,api_key: str = Header(...)):
+async def add_company(idUser: int,company: CompanyCreate,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = insert_company_to_db(company,profileUser)
+    await(validate_permissions(idUser, [ProfileEnum.TEACHER.value]))
+    msg = insert_company_to_db(company)
     return msg
 
 @app.delete("/api/company/delete")
-async def delete_company(idCompany: str,profileUser: str,api_key: str = Header(...)):
+async def delete_company(idUser: int,idCompany: str,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = delete_company_from_db(int(idCompany),int(profileUser))
+    await(validate_permissions(idUser, [ProfileEnum.TEACHER.value]))
+    msg = delete_company_from_db(int(idCompany))
     return msg
 
 @app.put("/api/company/update")
-async def update_company(company: CompanyCreate,idCompany: int,profileUser: int,api_key: str = Header(...)):
+async def update_company(idUser: int,company: CompanyCreate,idCompany: int,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = update_company_from_db(company,int(idCompany),int(profileUser))
+    await(validate_permissions(idUser, [ProfileEnum.TEACHER.value]))
+    msg = update_company_from_db(company,int(idCompany))
     return msg
 
 ## Module
 
 @app.post("/api/module/add")
-async def add_module(module: ModuleCreate,profileUser: int,api_key: str = Header(...)):
+async def add_module(idUser: int,module: ModuleCreate,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = insert_module_to_db(module,profileUser)
+    await(validate_permissions(idUser, [ProfileEnum.ADMIN.value]))
+    msg = insert_module_to_db(module)
     return msg
 
 @app.delete("/api/module/delete")
-async def delete_module(idModule: int,profileUser: int,api_key: str = Header(...)):
+async def delete_module(idUser: int,idModule: int,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = delete_module_from_db(idModule,profileUser)
+    await(validate_permissions(idUser, [ProfileEnum.ADMIN.value]))
+    msg = delete_module_from_db(idModule)
     return msg
 
 @app.put("/api/module/update")
-async def update_module(module: ModuleCreate,idModule: int,profileUser: int,api_key: str = Header(...)):
+async def update_module(idUser: int,module: ModuleCreate,idModule: int,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = update_module_from_db(module,idModule,profileUser)
+    await(validate_permissions(idUser, [ProfileEnum.ADMIN.value]))
+    msg = update_module_from_db(module,idModule)
     return msg
 
 ## Add user
@@ -109,9 +116,10 @@ async def add_students_set(idUser: int, request: Request, api_key: str = Header(
 # Delete user
 
 @app.delete("/api/user/delete")
-async def delete_alumn(idAlumn: int,profileUser: int, api_key: str = Header(...)):
+async def delete_student(idAlumn: int,idUser: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = delete_alumn_from_db(idAlumn,profileUser)
+    await(validate_permissions(idUser, [ProfileEnum.TEACHER.value]))
+    msg = delete_student_from_db(idAlumn)
     return msg
 
 # Update user
@@ -125,15 +133,17 @@ async def update_user(idUser: int, idUserToUpdate: int, updated_fields: dict, ap
 #
 
 @app.get("/api/user/get-all-entries")
-async def get_entries(idAlumn: int,profileUser: int, api_key: str = Header(...)):
+async def get_entries(idAlumn: int,idUser: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = get_entries_from_user(idAlumn,profileUser)
+    await(validate_permissions(idUser, [ProfileEnum.TEACHER]))
+    msg = get_entries_from_user(idAlumn)
     return msg
 
 @app.get("/api/user/get-profile")
-async def get_profile(idAlumn: int,profileUser: int, api_key: str = Header(...)):
+async def get_profile(idAlumn: int,idUser: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = get_data_from_user(idAlumn,profileUser)
+    await(validate_permissions(idUser, [ProfileEnum.TEACHER]))
+    msg = get_data_from_user(idAlumn)
     return msg
 
 ## Database
@@ -164,56 +174,61 @@ async def drop_database(idUser: int, api_key: str = Header(...)):
 
 ## Unit
 
-@app.post("/api/unit/add/{profileUser}")
-async def add_unit(unit: UnitCreate,profileUser: int,api_key: str = Header(...)):
+@app.post("/api/unit/add/")
+async def add_unit(idUser: int,unit: UnitCreate,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = insert_unit_to_db(unit,profileUser)
+    await(validate_permissions(idUser, [ProfileEnum.TEACHER.value]))
+    msg = insert_unit_to_db(unit)
     return msg
 
 @app.delete("/api/unit/delete/")
-async def delete_unit(idUnit: int,profileUser: int,api_key: str = Header(...)):
+async def delete_unit(idUser: int,idUnit: int,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = delete_unit_from_db(idUnit,profileUser)
+    await(validate_permissions(idUser, [ProfileEnum.ADMIN.value]))
+    msg = delete_unit_from_db(idUnit)
     return msg
 
 @app.put("/api/unit/update/")
-async def update_unit(unit: UnitCreate,idUnit: int,profileUser: int,api_key: str = Header(...)):
+async def update_unit(idUser: int,unit: UnitCreate,idUnit: int,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = update_unit_from_db(unit,idUnit,profileUser)
+    await(validate_permissions(idUser, [ProfileEnum.ADMIN.value]))
+    msg = update_unit_from_db(unit,idUnit)
     return msg
 
 ## Day
 
 @app.get("/api/day/")
-async def get_day(idDay: int,profileUser: int,api_key: str = Header(...)):
+async def get_day(idUser: int,idDay: int,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = get_day_from_db(idDay,profileUser)
+    await(validate_permissions(idUser, [ProfileEnum.TEACHER.value,ProfileEnum.STUDENT.value]))
+    msg = get_day_from_db(idDay)
     return msg
 
 @app.put("/api/day/update/")
-async def update_day(day: DayCreate,idDay: int,profileUser: int,api_key: str = Header(...)):
+async def update_day(idUser: int,day: DayCreate,idDay: int,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = update_day_from_db(day,idDay,profileUser)
+    await(validate_permissions(idUser, [ProfileEnum.TEACHER.value,ProfileEnum.STUDENT.value]))
+    msg = update_day_from_db(day,idDay)
     return msg
 
 ## Login
 
 @app.get("/api/user")
-async def get_user(idUser: int,profileUser: int,api_key: str = Header(...)):
+async def get_user(idUser: int,idAlumn: int,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = get_user_from_db(idUser, profileUser)
+    msg = get_user_from_db(idAlumn)
     return msg
 
 @app.post("/api/user/login")
-async def get_user(auth: LoginCreate,profileUser: int,api_key: str = Header(...)):
+async def get_user(auth: LoginCreate,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = login_from_db(auth,profileUser)
+    msg = login_from_db(auth)
     return msg
 
 ## Agreement
 
 @app.get("/api/agreement/get")
-async def get_agreement(idAgreement: int, userProfile: int, api_key: str = Header(...)):
+async def get_agreement(idUser: int,idAgreement: int,api_key: str = Header(...)):
     await(validate_api_key(api_key))
     return get_agreement_from_db(idAgreement, userProfile)
 
@@ -224,6 +239,6 @@ async def delete_agreement(idUser: int, idAgreement: int, api_key: str = Header(
     return delete_agreement_from_db(idAgreement)
 
 @app.put("/api/agreement/update")
-async def delete_agreement(idAgreement: int, userProfile: int, api_key: str = Header(...)):
+async def delete_agreement(idUser: int,idAgreement: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     return update_agreement_from_db(idAgreement, userProfile)

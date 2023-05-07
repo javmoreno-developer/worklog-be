@@ -13,9 +13,7 @@ class ProfileEnum(str, Enum):
     LABOR = '4'
 
 
-def insert_company_to_db(company: CompanyCreate, profileUser: int):
-
-    if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
+def insert_company_to_db(company: CompanyCreate):
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
@@ -32,14 +30,12 @@ def insert_company_to_db(company: CompanyCreate, profileUser: int):
 
         # Devolver el ID de la nueva compañía
         return {"message": f"Company with id {new_id} has been added."}
-    else:
-        return check_permission(profileUser,ProfileEnum.TEACHER)
 
 
 
-def delete_company_from_db(idCompany: int,profileUser: int):
+def delete_company_from_db(idCompany: int):
 
-    if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
+
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
         sql = f"DELETE FROM company WHERE idCompany = {idCompany}"
@@ -49,12 +45,11 @@ def delete_company_from_db(idCompany: int,profileUser: int):
         do_commit(conn,cursor)
 
         return {"message": f"Company with id {idCompany} has been deleted."}
-    else:
-        return check_permission(profileUser,ProfileEnum.TEACHER)
 
 
-def update_company_from_db(company:CompanyCreate,idCompany:int,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
+
+def update_company_from_db(company:CompanyCreate,idCompany:int):
+
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
@@ -67,12 +62,11 @@ def update_company_from_db(company:CompanyCreate,idCompany:int,profileUser: int)
         do_commit(conn,cursor)
 
         return {"message": f"Company with id {idCompany} has been updated."}
-    else:
-        return check_permission(profileUser,ProfileEnum.TEACHER)
 
 
-def insert_module_to_db(module: ModuleCreate,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.ADMIN) == True):
+
+def insert_module_to_db(module: ModuleCreate):
+
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
@@ -89,12 +83,11 @@ def insert_module_to_db(module: ModuleCreate,profileUser: int):
 
         # Devolver el ID del nuevo módulo
         return {"message": f"Module with id {new_id} has been added."}
-    else:
-        return check_permission(profileUser,ProfileEnum.ADMIN)
 
 
-def delete_module_from_db(idModule: int,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.ADMIN) == True):
+
+def delete_module_from_db(idModule: int):
+
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
@@ -105,12 +98,10 @@ def delete_module_from_db(idModule: int,profileUser: int):
         do_commit(conn,cursor)
 
         return {"message": f"Module with id {idModule} has been deleted."}
-    else:
-        return check_permission(profileUser,ProfileEnum.ADMIN)
 
     
-def update_module_from_db(module:ModuleCreate,idModule: int,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.ADMIN) == True):
+def update_module_from_db(module:ModuleCreate,idModule: int):
+   
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
@@ -123,8 +114,7 @@ def update_module_from_db(module:ModuleCreate,idModule: int,profileUser: int):
         do_commit(conn,cursor)
 
         return {"message": f"Module with id {idModule} has been updated."}
-    else:
-        return check_permission(profileUser,ProfileEnum.ADMIN)
+
 
 
 def insert_user_to_db(user: UserCreate, profile: ProfileEnum): 
@@ -218,8 +208,7 @@ def insert_labor_to_db(labor: UserCreate):
     except InsertUserException as e:
         raise InsertUserException(f"error: {str(e)}")
 
-def delete_alumn_from_db(idAlumn: int,profileUser: int):
-   if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
+def delete_student_from_db(idAlumn: int):
     # Get the connection and the cursor
     conn, cursor = get_conn_and_cursor()
 
@@ -230,14 +219,12 @@ def delete_alumn_from_db(idAlumn: int,profileUser: int):
     do_commit(conn,cursor)
 
     return {"message": f"User with id {idAlumn} has been deleted."}
-   else:
-    return check_permission(profileUser,ProfileEnum.TEACHER)
 
-def get_entries_from_user(idAlumn: int,profileUser: int):
+
+def get_entries_from_user(idAlumn: int):
     ## Get the idAgreement
     # RUTA: obtener el agreement a partir del profileUser,obtener los entries del agreement
     # Get the connection and the cursor
-    if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
         conn, cursor = get_conn_and_cursor()
 
         sql = f"SELECT idAgreement FROM agreement WHERE idAlumn={idAlumn}"
@@ -259,11 +246,10 @@ def get_entries_from_user(idAlumn: int,profileUser: int):
             rows.append(row_dict)
 
         return rows
-    else:
-        return check_permission(profileUser,ProfileEnum.TEACHER)    
+  
 
-def get_data_from_user(idAlumn: int,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
+def get_data_from_user(idAlumn: int):
+
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
@@ -279,12 +265,11 @@ def get_data_from_user(idAlumn: int,profileUser: int):
             for i, column in enumerate(cursor.description):
                 row[column[0]] = result[i]
         return row
-    else:
-        return check_permission(profileUser,ProfileEnum.TEACHER)  
 
 
-def insert_unit_to_db(unit: UnitCreate,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
+
+def insert_unit_to_db(unit: UnitCreate):
+        #return unit
         # Obtener la conexión y el cursor
         conn, cursor = get_conn_and_cursor()
 
@@ -301,11 +286,10 @@ def insert_unit_to_db(unit: UnitCreate,profileUser: int):
 
         # Devolver el ID de la nueva unidad
         return {"message": f"Unit with id {new_id} has been added."}
-    else:
-        return check_permission(profileUser,ProfileEnum.ADMIN)
+ 
 
-def delete_unit_from_db(idUnit: int,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.ADMIN) == True):
+def delete_unit_from_db(idUnit: int):
+
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
@@ -316,12 +300,11 @@ def delete_unit_from_db(idUnit: int,profileUser: int):
         do_commit(conn,cursor)
 
         return {"message": f"Unit with id {idUnit} has been deleted."}
-    else:
-        return check_permission(profileUser,ProfileEnum.ADMIN)
+
   
 
-def update_unit_from_db(unit: UnitCreate,idUnit: int,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.ADMIN) == True):
+def update_unit_from_db(unit: UnitCreate,idUnit: int):
+
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
@@ -334,12 +317,11 @@ def update_unit_from_db(unit: UnitCreate,idUnit: int,profileUser: int):
         do_commit(conn,cursor)
 
         return {"message": f"Unit with id {idUnit} has been updated."}
-    else:
-        return check_permission(profileUser,ProfileEnum.ADMIN)
 
 
-def get_day_from_db(idDay: int,profileUser: int):
-    if((check_permission(profileUser,ProfileEnum.STUDENT) == True) or (check_permission(profileUser,ProfileEnum.TEACHER) == True)):
+
+def get_day_from_db(idDay: int):
+   
         conn, cursor = get_conn_and_cursor()
         ## Get the entries
         sql = f"SELECT * FROM day WHERE idDay={idDay}"
@@ -353,11 +335,9 @@ def get_day_from_db(idDay: int,profileUser: int):
                 row[column[0]] = result[i]
         return row
         
-    else: 
-        return check_permission(profileUser,ProfileEnum.STUDENT)
+ 
 
-def update_day_from_db(day: DayCreate,idDay: int,profileUser: int):
-    if((check_permission(profileUser,ProfileEnum.STUDENT) == True) or (check_permission(profileUser,ProfileEnum.TEACHER) == True)):
+def update_day_from_db(day: DayCreate,idDay: int):
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
@@ -370,8 +350,7 @@ def update_day_from_db(day: DayCreate,idDay: int,profileUser: int):
         do_commit(conn,cursor)
 
         return {"message": f"Day with id {idDay} has been updated."}
-    else:
-        return check_permission(profileUser,ProfileEnum.STUDENT)
+
 
 
 def get_user_from_db(id: int):
@@ -412,8 +391,7 @@ def get_user_from_db(id: int):
         raise Exception(f"Error retrieving user: {str(e)}")
 
 
-def login_from_db(auth: LoginCreate,profileUser: int):
-    if((check_permission(profileUser,ProfileEnum.STUDENT) == True) or (check_permission(profileUser,ProfileEnum.TEACHER) == True)):
+def login_from_db(auth: LoginCreate):
         conn, cursor = get_conn_and_cursor()
         ## Get the entries
         sql = f"SELECT * FROM user WHERE email='{auth.email}' AND password='{auth.password}'"
@@ -427,8 +405,7 @@ def login_from_db(auth: LoginCreate,profileUser: int):
                 row[column[0]] = result[i]
         return row
         
-    else: 
-        return check_permission(profileUser,ProfileEnum.STUDENT)
+
 
 
 def insert_students_to_db_xml(students_xml: str):
