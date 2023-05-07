@@ -92,47 +92,39 @@ def send_email(emailReceiver: str):
         server.sendmail(sender_email, receiver_email, text)
         server.quit()
 
-        reset_password(user["idUser"],new_password)
+        reset_password(user["idUser"], new_password)
         
-        return {"message": "Email sended"}
+        return {"message": "Email sent"}
     else:
         return {"message": "The user does not exist"}
     
 
 
-def import_mysql_database(profileUser: int):
-
-    if(check_permission(profileUser,ProfileEnum.ADMIN) == True):
-        # Conectar a la base de datos
+def import_mysql_database():
         
+    # Conectar a la base de datos
+    file = open(FILENAME)
+    sql = file.read()
 
-        
+    cnx = mysql.connector.connect(
+        host="host.docker.internal",
+        user="root",
+        password="",
+        database="mydatabase"
+    )
+    cursor = cnx.cursor()
 
-        file = open(FILENAME)
-        sql = file.read()
+    for result in cursor.execute(sql, multi=True):
+        if result.with_rows:
+            print("Rows produced by statement '{}':".format(
+            result.statement))
+            print(result.fetchall())
+        else:
+            print("Number of rows affected by statement '{}': {}".format(
+            result.statement, result.rowcount))
 
-
-        cnx = mysql.connector.connect(
-            host="host.docker.internal",
-            user="root",
-            password="",
-            database="mydatabase"
-        )
-        cursor = cnx.cursor()
-
-        for result in cursor.execute(sql, multi=True):
-            if result.with_rows:
-                print("Rows produced by statement '{}':".format(
-                result.statement))
-                print(result.fetchall())
-            else:
-                print("Number of rows affected by statement '{}': {}".format(
-                result.statement, result.rowcount))
-
-        cnx.close()
-        return {"message": "database imported"}
-    else:
-        return check_permission(profileUser,ProfileEnum.ADMIN)
+    cnx.close()
+    return {"message": "database imported"}
 
 ### HAY QUE MIRARLO
 def generate_backup_of_db():
@@ -153,24 +145,24 @@ def generate_backup_of_db():
 def get_new_password():
     return secrets.token_hex(4)
 
-def reset_password(id: int,new_password: str):
+def reset_password(id: int, new_password: str):
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
         query, values = get_query_and_values("user", "idUser", id, {"password": new_password})
 
-        cursor.execute(query,values)
+        cursor.execute(query, values)
         
         # Hacer commit de los cambios y cerrar la conexión
-        do_commit(conn,cursor)
+        do_commit(conn, cursor)
 
 
 def check_user_by_email(email: str):
     conn, cursor = get_conn_and_cursor()
     ## Get the entries
-    sql = f"SELECT * FROM user WHERE email='{email}'"
+    query = f"SELECT * FROM user WHERE email='{email}'"
 
-    cursor.execute(sql)
+    cursor.execute(query)
 
     result = cursor.fetchone()
     row = {}

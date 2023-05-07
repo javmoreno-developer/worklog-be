@@ -2,9 +2,12 @@ import mysql.connector
 from mysql.connector.errors import IntegrityError
 from fastapi.exceptions import HTTPException
 import xml.etree.ElementTree as ET
+from typing import Type, TypeVar
 from exceptions import *
 from models import *
 from utils import *
+
+T = TypeVar('T')
 
 class ProfileEnum(str, Enum):
     ADMIN = '1'
@@ -15,7 +18,6 @@ class ProfileEnum(str, Enum):
 
 def insert_company_to_db(company: CompanyCreate, profileUser: int):
 
-    if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
@@ -32,14 +34,11 @@ def insert_company_to_db(company: CompanyCreate, profileUser: int):
 
         # Devolver el ID de la nueva compañía
         return {"message": f"Company with id {new_id} has been added."}
-    else:
-        return check_permission(profileUser,ProfileEnum.TEACHER)
 
 
 
-def delete_company_from_db(idCompany: int,profileUser: int):
+def delete_company_from_db(idCompany: int):
 
-    if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
         sql = f"DELETE FROM company WHERE idCompany = {idCompany}"
@@ -49,82 +48,68 @@ def delete_company_from_db(idCompany: int,profileUser: int):
         do_commit(conn,cursor)
 
         return {"message": f"Company with id {idCompany} has been deleted."}
-    else:
-        return check_permission(profileUser,ProfileEnum.TEACHER)
 
 
-def update_company_from_db(company:CompanyCreate,idCompany:int,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
-        # Get the connection and the cursor
-        conn, cursor = get_conn_and_cursor()
+def update_company_from_db(idCompany: int, updated_fields: dict):
+    # Get the connection and the cursor
+    conn, cursor = get_conn_and_cursor()
 
-        query, values = get_query_and_values("company", "idCompany", idCompany, {"name": company.name,"direction": company.direction,"latitude": company.latitude,"longitude": company.longitude,"phone": company.phone})
+    query, values = get_query_and_values("company", "idCompany", idCompany, updated_fields)
 
-        #sql = f"UPDATE company SET name='{company.name}',direction='{company.direction}',latitude={company.latitude},longitude={company.latitude},phone='{company.phone}' WHERE idComp={id}"
-        cursor.execute(query,values)
+    #sql = f"UPDATE company SET name='{company.name}',direction='{company.direction}',latitude={company.latitude},longitude={company.latitude},phone='{company.phone}' WHERE idComp={id}"
+    cursor.execute(query,values)
         
-        # Hacer commit de los cambios y cerrar la conexión
-        do_commit(conn,cursor)
+    # Hacer commit de los cambios y cerrar la conexión
+    do_commit(conn,cursor)
 
-        return {"message": f"Company with id {idCompany} has been updated."}
-    else:
-        return check_permission(profileUser,ProfileEnum.TEACHER)
+    return {"message": f"Company with id {idCompany} has been updated."}
 
 
 def insert_module_to_db(module: ModuleCreate,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.ADMIN) == True):
-        # Get the connection and the cursor
-        conn, cursor = get_conn_and_cursor()
+    # Get the connection and the cursor
+    conn, cursor = get_conn_and_cursor()
 
-        # Ejecutar la consulta INSERT
-        query = "INSERT INTO module (name, initials, hours, idUnit) VALUES (%s, %s, %s, %s)"
-        values = (module.name, module.initials, int(module.hours), int(module.idUnit))
-        cursor.execute(query, values)
+    # Ejecutar la consulta INSERT
+    query = "INSERT INTO module (name, initials, hours, idUnit) VALUES (%s, %s, %s, %s)"
+    values = (module.name, module.initials, int(module.hours), int(module.idUnit))
+    cursor.execute(query, values)
 
-        # Obtener el ID del nuevo módulo
-        new_id = cursor.lastrowid
+    # Obtener el ID del nuevo módulo
+    new_id = cursor.lastrowid
 
-        # Hacer commit de los cambios y cerrar la conexión
-        do_commit(conn,cursor)
+    # Hacer commit de los cambios y cerrar la conexión
+    do_commit(conn,cursor)
 
-        # Devolver el ID del nuevo módulo
-        return {"message": f"Module with id {new_id} has been added."}
-    else:
-        return check_permission(profileUser,ProfileEnum.ADMIN)
+    # Devolver el ID del nuevo módulo
+    return {"message": f"Module with id {new_id} has been added."}
 
 
-def delete_module_from_db(idModule: int,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.ADMIN) == True):
-        # Get the connection and the cursor
-        conn, cursor = get_conn_and_cursor()
+def delete_module_from_db(id_module: int):
+    # Get the connection and the cursor
+    conn, cursor = get_conn_and_cursor()
 
-        sql = f"DELETE FROM module WHERE idModule = {idModule}"
-        cursor.execute(sql)
+    sql = f"DELETE FROM module WHERE idModule = {id_module}"
+    cursor.execute(sql)
         
-        # Hacer commit de los cambios y cerrar la conexión
-        do_commit(conn,cursor)
+    # Hacer commit de los cambios y cerrar la conexión
+    do_commit(conn,cursor)
 
-        return {"message": f"Module with id {idModule} has been deleted."}
-    else:
-        return check_permission(profileUser,ProfileEnum.ADMIN)
+    return {"message": f"Module with id {id_module} has been deleted."}
 
     
-def update_module_from_db(module:ModuleCreate,idModule: int,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.ADMIN) == True):
-        # Get the connection and the cursor
-        conn, cursor = get_conn_and_cursor()
+def update_module_from_db(id_module: int, updated_fields: dict):
+    # Get the connection and the cursor
+    conn, cursor = get_conn_and_cursor()
 
-        query, values = get_query_and_values("module", "idModule", idModule, {"name": module.name,"initials": module.initials,"hours": module.hours,"idUnit": module.idUnit})
+    query, values = get_query_and_values("module", "idModule", id_module, updated_fields)
 
-        #sql = f"UPDATE module SET name='{module.name}',initials='{module.initials}',hours={module.hours},idUni={module.idUni} WHERE idMod={id}"
-        cursor.execute(query,values)
+    #sql = f"UPDATE module SET name='{module.name}',initials='{module.initials}',hours={module.hours},idUni={module.idUni} WHERE idMod={id}"
+    cursor.execute(query, values)
         
-        # Hacer commit de los cambios y cerrar la conexión
-        do_commit(conn,cursor)
+    # Hacer commit de los cambios y cerrar la conexión
+    do_commit(conn, cursor)
 
-        return {"message": f"Module with id {idModule} has been updated."}
-    else:
-        return check_permission(profileUser,ProfileEnum.ADMIN)
+    return {"message": f"Module with id {id_module} has been updated."}
 
 
 def insert_user_to_db(user: UserCreate, profile: ProfileEnum): 
@@ -218,20 +203,17 @@ def insert_labor_to_db(labor: UserCreate):
     except InsertUserException as e:
         raise InsertUserException(f"error: {str(e)}")
 
-def delete_alumn_from_db(idAlumn: int,profileUser: int):
-   if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
+def delete_alumn_from_db(id_user: int):
     # Get the connection and the cursor
     conn, cursor = get_conn_and_cursor()
 
-    sql = f"DELETE FROM user WHERE idUser = {idAlumn}"
+    sql = f"DELETE FROM user WHERE idUser = {id_user}"
     cursor.execute(sql)
     
     # Hacer commit de los cambios y cerrar la conexión
     do_commit(conn,cursor)
 
-    return {"message": f"User with id {idAlumn} has been deleted."}
-   else:
-    return check_permission(profileUser,ProfileEnum.TEACHER)
+    return {"message": f"User with id {id_user} has been deleted."}
 
 def get_entries_from_user(idAlumn: int,profileUser: int):
     ## Get the idAgreement
@@ -240,16 +222,16 @@ def get_entries_from_user(idAlumn: int,profileUser: int):
     if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
         conn, cursor = get_conn_and_cursor()
 
-        sql = f"SELECT idAgreement FROM agreement WHERE idAlumn={idAlumn}"
+        query = f"SELECT idAgreement FROM agreement WHERE idAlumn={idAlumn}"
 
-        cursor.execute(sql)
+        cursor.execute(query)
    
         idAgr = cursor.fetchone()[0]
 
         ## Get the entries
-        sql = f"SELECT * FROM entry WHERE idAgreement={idAgr}"
+        query = f"SELECT * FROM entry WHERE idAgreement={idAgr}"
 
-        cursor.execute(sql)
+        cursor.execute(query)
         results = cursor.fetchall()
 
         rows = []
@@ -262,70 +244,57 @@ def get_entries_from_user(idAlumn: int,profileUser: int):
     else:
         return check_permission(profileUser,ProfileEnum.TEACHER)    
 
-def get_data_from_user(idAlumn: int,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
-        # Get the connection and the cursor
-        conn, cursor = get_conn_and_cursor()
+def get_data_from_user(id_user: int):
+    # Get the connection and the cursor
+    conn, cursor = get_conn_and_cursor()
 
-        sql = f"SELECT * FROM user WHERE idUser={idAlumn}"
+    query = f"SELECT * FROM user WHERE idUser={id_user}"
 
-        cursor.execute(sql)
+    cursor.execute(query)
+    result = cursor.fetchone()
+    row = {}
+    if result:
+        for i, column in enumerate(cursor.description):
+            row[column[0]] = result[i]
+    return row
+
+
+def insert_unit_to_db(unit: UnitCreate):
+    # Obtener la conexión y el cursor
+    conn, cursor = get_conn_and_cursor()
+
+    # Ejecutar la consulta INSERT
+    query = "INSERT INTO unit (level, name, initials, charUnit, unitType) VALUES (%s, %s, %s, %s, %s)"
+    values = (unit.level, unit.name, unit.initials, "a", unit.unitType)
+    cursor.execute(query, values)
+
+    # Obtener el ID de la nueva unidad
+    new_id = cursor.lastrowid
+
+    # Hacer commit de los cambios y cerrar la conexión
+    do_commit(conn, cursor)
+
+    # Devolver el ID de la nueva unidad
+    return {"message": f"Unit with id {new_id} has been added."}
+
+def delete_unit_from_db(id_unit: int):
+    # Get the connection and the cursor
+    conn, cursor = get_conn_and_cursor()
+
+    query = f"DELETE FROM unit WHERE idUnit = {id_unit}"
+    cursor.execute(query)
         
+    # Hacer commit de los cambios y cerrar la conexión
+    do_commit(conn,cursor)
+
+    return {"message": f"Unit with id {id_unit} has been deleted."}
   
 
-        result = cursor.fetchone()
-        row = {}
-        if result:
-            for i, column in enumerate(cursor.description):
-                row[column[0]] = result[i]
-        return row
-    else:
-        return check_permission(profileUser,ProfileEnum.TEACHER)  
-
-
-def insert_unit_to_db(unit: UnitCreate,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.TEACHER) == True):
-        # Obtener la conexión y el cursor
-        conn, cursor = get_conn_and_cursor()
-
-        # Ejecutar la consulta INSERT
-        query = "INSERT INTO unit (level, name, initials, charUnit, unitType) VALUES (%s, %s, %s, %s, %s)"
-        values = (unit.level, unit.name, unit.initials, "a", unit.unitType)
-        cursor.execute(query, values)
-
-        # Obtener el ID de la nueva unidad
-        new_id = cursor.lastrowid
-
-        # Hacer commit de los cambios y cerrar la conexión
-        do_commit(conn, cursor)
-
-        # Devolver el ID de la nueva unidad
-        return {"message": f"Unit with id {new_id} has been added."}
-    else:
-        return check_permission(profileUser,ProfileEnum.ADMIN)
-
-def delete_unit_from_db(idUnit: int,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.ADMIN) == True):
+def update_unit_from_db(id_unit: int, updated_fields: dict):
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
-        sql = f"DELETE FROM unit WHERE idUnit = {idUnit}"
-        cursor.execute(sql)
-        
-        # Hacer commit de los cambios y cerrar la conexión
-        do_commit(conn,cursor)
-
-        return {"message": f"Unit with id {idUnit} has been deleted."}
-    else:
-        return check_permission(profileUser,ProfileEnum.ADMIN)
-  
-
-def update_unit_from_db(unit: UnitCreate,idUnit: int,profileUser: int):
-    if(check_permission(profileUser,ProfileEnum.ADMIN) == True):
-        # Get the connection and the cursor
-        conn, cursor = get_conn_and_cursor()
-
-        query, values = get_query_and_values("unit", "idUnit", idUnit, {"level": unit.level,"name": unit.name,"initials": unit.initials,"charUnit": unit.charUnit, "unitType": unit.unitType})
+        query, values = get_query_and_values("unit", "idUnit", id_unit, updated_fields)
 
         #sql = f"UPDATE module SET name='{module.name}',initials='{module.initials}',hours={module.hours},idUni={module.idUni} WHERE idMod={id}"
         cursor.execute(query,values)
@@ -333,9 +302,7 @@ def update_unit_from_db(unit: UnitCreate,idUnit: int,profileUser: int):
         # Hacer commit de los cambios y cerrar la conexión
         do_commit(conn,cursor)
 
-        return {"message": f"Unit with id {idUnit} has been updated."}
-    else:
-        return check_permission(profileUser,ProfileEnum.ADMIN)
+        return {"message": f"Unit with id {id_unit} has been updated."}
 
 
 def get_day_from_db(idDay: int,profileUser: int):
@@ -356,22 +323,20 @@ def get_day_from_db(idDay: int,profileUser: int):
     else: 
         return check_permission(profileUser,ProfileEnum.STUDENT)
 
-def update_day_from_db(day: DayCreate,idDay: int,profileUser: int):
-    if((check_permission(profileUser,ProfileEnum.STUDENT) == True) or (check_permission(profileUser,ProfileEnum.TEACHER) == True)):
-        # Get the connection and the cursor
-        conn, cursor = get_conn_and_cursor()
+def update_day_from_db(id_day: int, updated_fields: dict):
 
-        query, values = get_query_and_values("day", "idDay", idDay, {"text": day.text,"hours": day.hours,"observations": day.observations,"idEntry": day.idEntry})
+    # Get the connection and the cursor
+    conn, cursor = get_conn_and_cursor()
 
-        #sql = f"UPDATE module SET name='{module.name}',initials='{module.initials}',hours={module.hours},idUni={module.idUni} WHERE idMod={id}"
-        cursor.execute(query,values)
+    query, values = get_query_and_values("day", "idDay", id_day, updated_fields)
+
+    #sql = f"UPDATE module SET name='{module.name}',initials='{module.initials}',hours={module.hours},idUni={module.idUni} WHERE idMod={id}"
+    cursor.execute(query,values)
         
-        # Hacer commit de los cambios y cerrar la conexión
-        do_commit(conn,cursor)
+    # Hacer commit de los cambios y cerrar la conexión
+    do_commit(conn,cursor)
 
-        return {"message": f"Day with id {idDay} has been updated."}
-    else:
-        return check_permission(profileUser,ProfileEnum.STUDENT)
+    return {"message": f"Day with id {id_day} has been updated."}
 
 
 def get_user_from_db(id: int):
@@ -542,3 +507,56 @@ def update_user_in_db(user_id: int, updated_fields: dict):
         rollback(conn, cursor)
 
         return {"error": f"Error updating user: {str(e)}"}
+    
+# Update table in database
+def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields: dict, cls: Type):
+
+    try:
+        # Get the connection and the cursor
+        conn, cursor = get_conn_and_cursor()
+
+        # Get the query and the values
+        query, values = get_query_and_values(table_name, id_name, id_value, updated_fields)
+
+        # Execute the query
+        cursor.execute(query, values)
+
+        # Commit changes and close connections
+        do_commit(conn, cursor)
+
+        object_inserted = get_object_from_db(table_name, id_value, cls)
+
+        return object_inserted
+
+    except Exception as e:
+
+        # Rollback changes and close connections
+        rollback(conn, cursor)
+
+        return {"error": f"Error updating the object: {str(e)}"}
+    
+def get_object_from_db(table: str, id: int, cls: Type) -> object:
+
+    try:
+        # Get the connection and the cursor
+        conn, cursor = get_conn_and_cursor()
+
+        query = f"SELECT * FROM {table} WHERE id = {id}"
+
+        cursor.execute(query)
+
+        # Fetch the object from the result set
+        result = cursor.fetchone()
+        if result is None:
+            raise Exception(f"{cls.__name__} with id {id} not found")
+
+        # Create an object from the database row
+        obj = cls(*result)
+
+        return obj
+
+    except Exception as e:
+        # Rollback changes and close connections
+        rollback(conn, cursor)
+
+        raise Exception(f"Error retrieving {cls.__name__}: {str(e)}")
