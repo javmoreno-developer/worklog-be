@@ -34,7 +34,7 @@ async def validate_api_key(api_key: str = Header(...)):
 async def validate_permissions(idUser: int, permissions: List[str]):
     try:
         profile = get_profile_from_user(idUser)
-        if(str(profile) not in permissions or str(profile)!= ProfileEnum.ADMIN):
+        if(str(profile) not in permissions and str(profile)!= ProfileEnum.ADMIN.value):
             raise HTTPException(status_code=401, detail="Permission denied")
     except GetUserException as e:
         raise HTTPException(status_code=404, detail=f"{str(e)}")

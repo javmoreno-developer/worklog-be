@@ -474,8 +474,18 @@ def get_profile_from_user(id: int):
         result = cursor.fetchone()[0]
 
         close_conn_and_cursor(conn, cursor)
-        
-        return result
+    
+        # Map the result to the corresponding enum value
+        if result == "1":
+            return ProfileEnum.ADMIN.value
+        elif result == "2":
+            return ProfileEnum.STUDENT.value
+        elif result == "3":
+            return ProfileEnum.TEACHER.value
+        elif result == "4":
+            return ProfileEnum.LABOR.value
+        else:
+            raise ValueError(f"Invalid profile value: {result}")
     
     except Exception as e:
         raise GetUserException(f"error: {str(e)}")
