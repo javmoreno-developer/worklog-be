@@ -83,7 +83,7 @@ async def delete_user(id_check: int, id_user: int, api_key: str = Header(...)):
 async def update_user(id_check: int, id_user: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.STUDENT]))
-    return update_user_in_db(id_user, updated_fields)
+    return update_table_db(T_USER, ID_NAME_USER, id_user, updated_fields)
 
 ## Add company
 
@@ -107,7 +107,7 @@ async def delete_company(id_check: int, id_company: int, api_key: str = Header(.
 async def update_company(id_check: int, id_company: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
-    return update_company_from_db(id_company, updated_fields)
+    return update_table_db(T_COMPANY, ID_NAME_COMPANY, id_company, updated_fields)
 
 ## Add module
 
@@ -131,7 +131,7 @@ async def delete_module(id_check: int, id_module: int, api_key: str = Header(...
 async def update_module(id_check: int, id_module: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
-    return update_module_from_db(id_module, updated_fields)
+    return update_table_db(T_MODULE, ID_NAME_MODULE, id_module, updated_fields)
 
 #
 
@@ -197,7 +197,7 @@ async def delete_unit(id_check: int, id_unit: int, api_key: str = Header(...)):
 async def update_unit(id_check: int, id_unit: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
-    return update_unit_from_db(id_unit, updated_fields)
+    return update_table_db(T_UNIT, ID_NAME_UNIT, id_unit, updated_fields)
 
 ## Get day
 
@@ -213,15 +213,15 @@ async def get_day(id_check: int, id_day: int, api_key: str = Header(...)):
 async def update_day(id_check: int, id_day: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.STUDENT.value]))
-    return update_day_from_db(id_day, updated_fields)
+    return update_table_db(T_DAY, ID_NAME_DAY, id_day, updated_fields)
 
 ## Login
 
 @app.get("/api/user")
-async def get_user(idUser: int,profileUser: int,api_key: str = Header(...)):
+async def get_user(id_check: int, id_user: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    msg = get_user_from_db(idUser, profileUser)
-    return msg
+    await(validate_permissions(id_check, [ProfileEnum.TEACHER.value])) ## ESTO LO PUEDE HACER tODO EL MUNDO NO?
+    return get_user_from_db(id_user)
 
 #### AQUI SE NECESITA EL PROFILE?
 @app.post("/api/user/login")
@@ -242,10 +242,10 @@ async def get_agreement(id_check: int, id_agreement: int, api_key: str = Header(
 ## Add agreement
 
 @app.post("/api/agreement/add")
-async def get_agreement(id_check: int, id_agreement: int, userProfile: int, api_key: str = Header(...)):
+async def get_agreement(id_check: int, id_agreement: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
-    return add_agreement_to_db(id_agreement, userProfile)
+    return add_agreement_to_db(id_agreement)
 
 ## Delete agreement
 
@@ -253,17 +253,24 @@ async def get_agreement(id_check: int, id_agreement: int, userProfile: int, api_
 async def delete_agreement(id_check: int, id_agreement: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
-    ## TMBN PODEMOS HACER UN MÉTODO PARA BORRAR QUE BORRE DE CUALQUIER TABLA Y GLOBALIZAMOS ESO
-    return delete_agreement_from_db(id_agreement)
+    return delete_row_db(T_AGREEMENT, ID_NAME_AGREEMENT, id_agreement)
 
 ## Update agreement
 
 @app.put("/api/agreement/update")
-async def update_agreement(id_check: int, id_agreement: int, updated_fields: dict,  api_key: str = Header(...)):
+async def update_agreement(id_check: int, id_agreement: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
-    ## COMPRUEBA QUE ESTE MÉTODO FUNCIONA EN TODAS LAS TABLAS,
-    # METE TODAS LAS TABLAS Y NOMBRES DE IDS EN EL ARCHIVO DE CONSTANTES
-    # Y MIRA TMBN EL MÉTODO QUE VA POR DENTRO DE GET_OBJECT_FROM_DB
-    # CON ESTOS DOS MÉTODOS NOS GLOBALIZAMOS TODOS LOS UPDATE
-    return update_table_db(TABLE_AGRE, ID_NAME_AGRE, id_agreement, updated_fields)
+    return update_table_db(T_AGREEMENT, ID_NAME_AGREEMENT, id_agreement, updated_fields)
+
+## Settings
+
+@app.post("/api/settings")
+async def update_course_duration(id_check: int, start_date: str, end_date: str, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+
+
+    # Check that start date is smaller than end date
+    if start_date and end_date and start_date >= end_date:
+        raise HTTPException(status_code=400, detail="Start date must be before end date")

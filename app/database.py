@@ -7,8 +7,6 @@ from exceptions import *
 from models import *
 from utils import *
 
-T = TypeVar('T')
-
 class ProfileEnum(str, Enum):
     ADMIN = '1'
     STUDENT = '2'
@@ -49,22 +47,6 @@ def delete_company_from_db(idCompany: int):
 
         return {"message": f"Company with id {idCompany} has been deleted."}
 
-
-def update_company_from_db(idCompany: int, updated_fields: dict):
-    # Get the connection and the cursor
-    conn, cursor = get_conn_and_cursor()
-
-    query, values = get_query_and_values("company", "idCompany", idCompany, updated_fields)
-
-    #sql = f"UPDATE company SET name='{company.name}',direction='{company.direction}',latitude={company.latitude},longitude={company.latitude},phone='{company.phone}' WHERE idComp={id}"
-    cursor.execute(query,values)
-        
-    # Hacer commit de los cambios y cerrar la conexión
-    do_commit(conn,cursor)
-
-    return {"message": f"Company with id {idCompany} has been updated."}
-
-
 def insert_module_to_db(module: ModuleCreate,profileUser: int):
     # Get the connection and the cursor
     conn, cursor = get_conn_and_cursor()
@@ -95,22 +77,6 @@ def delete_module_from_db(id_module: int):
     do_commit(conn,cursor)
 
     return {"message": f"Module with id {id_module} has been deleted."}
-
-    
-def update_module_from_db(id_module: int, updated_fields: dict):
-    # Get the connection and the cursor
-    conn, cursor = get_conn_and_cursor()
-
-    query, values = get_query_and_values("module", "idModule", id_module, updated_fields)
-
-    #sql = f"UPDATE module SET name='{module.name}',initials='{module.initials}',hours={module.hours},idUni={module.idUni} WHERE idMod={id}"
-    cursor.execute(query, values)
-        
-    # Hacer commit de los cambios y cerrar la conexión
-    do_commit(conn, cursor)
-
-    return {"message": f"Module with id {id_module} has been updated."}
-
 
 def insert_user_to_db(user: UserCreate, profile: ProfileEnum): 
             
@@ -288,22 +254,6 @@ def delete_unit_from_db(id_unit: int):
     do_commit(conn,cursor)
 
     return {"message": f"Unit with id {id_unit} has been deleted."}
-  
-
-def update_unit_from_db(id_unit: int, updated_fields: dict):
-        # Get the connection and the cursor
-        conn, cursor = get_conn_and_cursor()
-
-        query, values = get_query_and_values("unit", "idUnit", id_unit, updated_fields)
-
-        #sql = f"UPDATE module SET name='{module.name}',initials='{module.initials}',hours={module.hours},idUni={module.idUni} WHERE idMod={id}"
-        cursor.execute(query,values)
-        
-        # Hacer commit de los cambios y cerrar la conexión
-        do_commit(conn,cursor)
-
-        return {"message": f"Unit with id {id_unit} has been updated."}
-
 
 def get_day_from_db(idDay: int,profileUser: int):
     if((check_permission(profileUser,ProfileEnum.STUDENT) == True) or (check_permission(profileUser,ProfileEnum.TEACHER) == True)):
@@ -322,22 +272,6 @@ def get_day_from_db(idDay: int,profileUser: int):
         
     else: 
         return check_permission(profileUser,ProfileEnum.STUDENT)
-
-def update_day_from_db(id_day: int, updated_fields: dict):
-
-    # Get the connection and the cursor
-    conn, cursor = get_conn_and_cursor()
-
-    query, values = get_query_and_values("day", "idDay", id_day, updated_fields)
-
-    #sql = f"UPDATE module SET name='{module.name}',initials='{module.initials}',hours={module.hours},idUni={module.idUni} WHERE idMod={id}"
-    cursor.execute(query,values)
-        
-    # Hacer commit de los cambios y cerrar la conexión
-    do_commit(conn,cursor)
-
-    return {"message": f"Day with id {id_day} has been updated."}
-
 
 def get_user_from_db(id: int):
 
@@ -481,39 +415,64 @@ def drop_db():
         else:
             return {"error": "An error occurred while dropping the database."}
 
-# Update user
-def update_user_in_db(user_id: int, updated_fields: dict):
+
+# HAY QUE CONTROLAR MENSAJE AL BORRAR REGISTROS QUE DEPENDAN DE OTROS Y DE ERROR AL INTENTAR BORRAR Y CAMBIAR EL MENSAJE SI NO BORRA UN OBJETO PORQUE NO LO ENCUENTRA
+def delete_row_db(table_name: str, id_name: str, id_value: int):
 
     try:
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
-        # Get the query and the values
-        query, values = get_query_and_values("user", "idUser", user_id, updated_fields)
+        # Get the table's column names
+        select_columns_query = f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'"
+        cursor.execute(select_columns_query)
+        column_names = [col[0] for col in cursor.fetchall()]
 
-        # Execute the query
-        cursor.execute(query, values)
+        # Query to get the object that is going to be deleted
+        select_object_query = f"SELECT * FROM {table_name} WHERE {id_name} = {id_value}"
+
+        # Execute query to retrieve the deleted object
+        cursor.execute(select_object_query)
+        deleted_object = cursor.fetchone()
+
+        # Query to delete the object
+        delete_query = f"DELETE FROM {table_name} WHERE {id_name} = {id_value}"
+
+        # Execute query
+        cursor.execute(delete_query)
 
         # Commit changes and close connections
         do_commit(conn, cursor)
 
-        user_inserted = get_user_from_db(user_id)
+        # Format the deleted object with column names
+        formatted_deleted_obj = None
+        if deleted_object:
+            formatted_deleted_obj = {column_names[i]: value for i, value in enumerate(deleted_object)}
 
-        return user_inserted
+        # Success message with deleted object
+        return {"message": f"{table_name.capitalize()} with id {id} has been deleted.", "result": formatted_deleted_obj}
 
     except Exception as e:
 
         # Rollback changes and close connections
         rollback(conn, cursor)
 
-        return {"error": f"Error updating user: {str(e)}"}
-    
+        # Failure message
+        raise Exception(f"Error deleting {table_name}: {str(e)}")
+
 # Update table in database
-def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields: dict, cls: Type):
+def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields: dict):
 
     try:
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
+
+        # Check if the object exists
+        select_query = f"SELECT * FROM {table_name} WHERE {id_name} = {id_value}"
+        cursor.execute(select_query)
+        row = cursor.fetchone()
+        if not row:
+            raise ValueError("Object not found")
 
         # Get the query and the values
         query, values = get_query_and_values(table_name, id_name, id_value, updated_fields)
@@ -521,12 +480,30 @@ def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields
         # Execute the query
         cursor.execute(query, values)
 
-        # Commit changes and close connections
-        do_commit(conn, cursor)
+        # Commit changes
+        conn.commit()
 
-        object_inserted = get_object_from_db(table_name, id_value, cls)
+        # Get the table's column names
+        select_columns_query = f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'"
+        cursor.execute(select_columns_query)
+        column_names = [col[0] for col in cursor.fetchall()]
 
-        return object_inserted
+        # Query to get the object that has been updated
+        select_object_query = f"SELECT * FROM {table_name} WHERE {id_name} = {id_value}"
+
+        # Execute query to retrieve the updated object
+        cursor.execute(select_object_query)
+        updated_object = cursor.fetchone()
+
+        # Format the updated object with column names
+        formatted_updated_obj = None
+        if updated_object:
+            formatted_updated_obj = {column_names[i]: value for i, value in enumerate(updated_object)}
+
+        # Close connection and cursor
+        close_conn_and_cursor(conn, cursor)
+
+        return {"message": f"{table_name.capitalize} updated successfully", "result": formatted_updated_obj}
 
     except Exception as e:
 
@@ -534,24 +511,34 @@ def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields
         rollback(conn, cursor)
 
         return {"error": f"Error updating the object: {str(e)}"}
-    
-def get_object_from_db(table: str, id: int, cls: Type) -> object:
+
+def get_object_from_db(table: str, id_name: int, id_value: int, cls: Type) -> object:
 
     try:
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
-        query = f"SELECT * FROM {table} WHERE id = {id}"
-
+        query = f"SELECT * FROM {table} WHERE {id_name} = {id_value}"
         cursor.execute(query)
 
-        # Fetch the object from the result set
-        result = cursor.fetchone()
-        if result is None:
-            raise Exception(f"{cls.__name__} with id {id} not found")
+        row = cursor.fetchone()
+        if not row:
+            raise ValueError(f"{cls.__name__} with {id_name}={id_value} not found")
+        
+        # Create a dictionary of attribute names and values
+        # based on the cursor description
+        attrs = dict(zip((d[0] for d in cursor.description), row))
+        print(f"XXX ATR {attrs}")
+        print(f"CLS attrs: {dir(cls)}")
 
-        # Create an object from the database row
-        obj = cls(*result)
+
+        # Remove any attribute that does not exist in the class
+        print(f"XXX CLASS {dir(cls)}")
+        attrs = {k: v for k, v in attrs.items() if hasattr(cls, k)}
+        print(f"XXX ATR REM {attrs}")
+
+        # Create an instance of the class and set its attributes
+        obj = cls(**attrs)
 
         return obj
 
