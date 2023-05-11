@@ -33,7 +33,7 @@ def rollback(conn, cursor):
     conn.rollback()
     close_conn_and_cursor(conn, cursor)
 
-def get_query_and_values(table_name: str, id_name: str, id_value, updated_fields):
+def get_query_and_values(table_name: str, exclude_list: dict, id_value, updated_fields):
 
     # Start building the query
     query = f"UPDATE {table_name} SET"
@@ -41,12 +41,12 @@ def get_query_and_values(table_name: str, id_name: str, id_value, updated_fields
 
     # Append to the query values that are not none, excluding ID
     for key, value in updated_fields.items():
-        if value is not None and key != id_name:
+        if value is not None and key not in exclude_list:
             query += f" {key} = %s,"
             values.append(value)
 
     # Remove the last comma and add the WHERE clause
-    query = query.rstrip(",") + f" WHERE {id_name} = %s"
+    query = query.rstrip(",") + f" WHERE {exclude_list[-1]} = %s"
     values.append(id_value)
 
     return query, values

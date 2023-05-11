@@ -6,6 +6,7 @@ from typing import Type, TypeVar
 from exceptions import *
 from models import *
 from utils import *
+from constants import *
 
 class ProfileEnum(str, Enum):
     ADMIN = '1'
@@ -429,7 +430,10 @@ def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields
             raise ValueError("Object not found")
 
         # Get the query and the values
-        query, values = get_query_and_values(table_name, id_name, id_value, updated_fields)
+        exclude_list = [id_name]
+        if table_name == T_USER:
+            exclude_list.append(PROFILE_USER)
+        query, values = get_query_and_values(table_name, exclude_list, id_value, updated_fields)
 
         # Execute the query
         cursor.execute(query, values)
