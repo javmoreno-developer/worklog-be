@@ -402,7 +402,7 @@ ALTER TABLE `day`
 -- Filtros para la tabla `entry`
 --
 ALTER TABLE `entry`
-  ADD CONSTRAINT `entry_ibfk_1` FOREIGN KEY (`idAgreement`) REFERENCES `agreement` (`idAgreement`);
+  ADD CONSTRAINT `entry_ibfk_1` FOREIGN KEY (`idAgreement`) REFERENCES `agreement` (`idAgreement`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `module`

@@ -34,19 +34,6 @@ def insert_company_to_db(company: CompanyCreate, profileUser: int):
         return {"message": f"Company with id {new_id} has been added."}
 
 
-
-def delete_company_from_db(idCompany: int):
-
-        # Get the connection and the cursor
-        conn, cursor = get_conn_and_cursor()
-        sql = f"DELETE FROM company WHERE idCompany = {idCompany}"
-        cursor.execute(sql)
-    
-        # Hacer commit de los cambios y cerrar la conexión
-        do_commit(conn,cursor)
-
-        return {"message": f"Company with id {idCompany} has been deleted."}
-
 def insert_module_to_db(module: ModuleCreate,profileUser: int):
     # Get the connection and the cursor
     conn, cursor = get_conn_and_cursor()
@@ -64,19 +51,6 @@ def insert_module_to_db(module: ModuleCreate,profileUser: int):
 
     # Devolver el ID del nuevo módulo
     return {"message": f"Module with id {new_id} has been added."}
-
-
-def delete_module_from_db(id_module: int):
-    # Get the connection and the cursor
-    conn, cursor = get_conn_and_cursor()
-
-    sql = f"DELETE FROM module WHERE idModule = {id_module}"
-    cursor.execute(sql)
-        
-    # Hacer commit de los cambios y cerrar la conexión
-    do_commit(conn,cursor)
-
-    return {"message": f"Module with id {id_module} has been deleted."}
 
 def insert_user_to_db(user: UserCreate, profile: ProfileEnum): 
             
@@ -169,18 +143,6 @@ def insert_labor_to_db(labor: UserCreate):
     except InsertUserException as e:
         raise InsertUserException(f"error: {str(e)}")
 
-def delete_alumn_from_db(id_user: int):
-    # Get the connection and the cursor
-    conn, cursor = get_conn_and_cursor()
-
-    sql = f"DELETE FROM user WHERE idUser = {id_user}"
-    cursor.execute(sql)
-    
-    # Hacer commit de los cambios y cerrar la conexión
-    do_commit(conn,cursor)
-
-    return {"message": f"User with id {id_user} has been deleted."}
-
 def get_entries_from_user(idAlumn: int,profileUser: int):
     ## Get the idAgreement
     # RUTA: obtener el agreement a partir del profileUser,obtener los entries del agreement
@@ -242,18 +204,6 @@ def insert_unit_to_db(unit: UnitCreate):
 
     # Devolver el ID de la nueva unidad
     return {"message": f"Unit with id {new_id} has been added."}
-
-def delete_unit_from_db(id_unit: int):
-    # Get the connection and the cursor
-    conn, cursor = get_conn_and_cursor()
-
-    query = f"DELETE FROM unit WHERE idUnit = {id_unit}"
-    cursor.execute(query)
-        
-    # Hacer commit de los cambios y cerrar la conexión
-    do_commit(conn,cursor)
-
-    return {"message": f"Unit with id {id_unit} has been deleted."}
 
 def get_day_from_db(idDay: int,profileUser: int):
     if((check_permission(profileUser,ProfileEnum.STUDENT) == True) or (check_permission(profileUser,ProfileEnum.TEACHER) == True)):
@@ -441,6 +391,10 @@ def delete_row_db(table_name: str, id_name: str, id_value: int):
         # Execute query
         cursor.execute(delete_query)
 
+        if cursor.rowcount == 0:
+            raise
+
+
         # Commit changes and close connections
         do_commit(conn, cursor)
 
@@ -450,7 +404,7 @@ def delete_row_db(table_name: str, id_name: str, id_value: int):
             formatted_deleted_obj = {column_names[i]: value for i, value in enumerate(deleted_object)}
 
         # Success message with deleted object
-        return {"message": f"{table_name.capitalize()} with id {id} has been deleted.", "result": formatted_deleted_obj}
+        return {"message": f"{table_name.capitalize()} with id {id_value} has been deleted.", "result": formatted_deleted_obj}
 
     except Exception as e:
 
@@ -503,7 +457,7 @@ def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields
         # Close connection and cursor
         close_conn_and_cursor(conn, cursor)
 
-        return {"message": f"{table_name.capitalize} updated successfully", "result": formatted_updated_obj}
+        return {"message": f"{table_name.capitalize()} updated successfully", "result": formatted_updated_obj}
 
     except Exception as e:
 

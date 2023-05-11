@@ -75,7 +75,8 @@ async def add_students_set(id_check: int, request: Request, api_key: str = Heade
 async def delete_user(id_check: int, id_user: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
-    return delete_alumn_from_db(id_user)
+    return delete_row_db(T_USER, ID_NAME_USER, id_user)
+    
 
 # Update user
 
@@ -99,7 +100,7 @@ async def add_company(id_check: int, company: CompanyCreate, api_key: str = Head
 async def delete_company(id_check: int, id_company: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
-    return delete_company_from_db(id_company)
+    return delete_row_db(T_COMPANY, ID_NAME_COMPANY, id_company)
 
 ## Update company
 
@@ -123,7 +124,7 @@ async def add_module(id_check: int, module: ModuleCreate, api_key: str = Header(
 async def delete_module(id_check: int, id_module: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
-    return delete_module_from_db(id_module)
+    return delete_row_db(T_MODULE, ID_NAME_MODULE, id_module)
 
 ## Update module
 
@@ -189,7 +190,7 @@ async def add_unit(id_check: int, unit: UnitCreate, api_key: str = Header(...)):
 async def delete_unit(id_check: int, id_unit: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
-    return delete_unit_from_db(id_unit)
+    return delete_row_db(T_UNIT, ID_NAME_UNIT, id_unit)
 
 ## Update unit
 
