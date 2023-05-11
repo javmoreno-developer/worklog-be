@@ -246,9 +246,35 @@ CREATE TABLE `user_has_unit` (
   `idUnit` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `settings`
+--
+
+CREATE TABLE `setting` (
+  `idSetting` int(1) NOT NULL,
+  `startDate` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `endDate` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `aptitudesPonderation` int(3) NOT NULL DEFAULT 10,
+  `subjectsPonderation` int(3) NOT NULL DEFAULT 90,
+  `holidays` text DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `setting` (`idSetting`, `startDate`, `endDate`, `aptitudesPonderation`, `subjectsPonderation`, `holidays`) VALUES
+(1, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+-- --------------------------------------------------------
+
 --
 -- Índices para tablas volcadas
 --
+
+--
+-- Indices de la tabla `setting`
+--
+ALTER TABLE `setting`
+  ADD PRIMARY KEY (`idSetting`);
 
 --
 -- Indices de la tabla `agreement`
