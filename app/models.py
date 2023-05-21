@@ -6,7 +6,7 @@ from enum import Enum
 ## Company
 class CompanyBase(BaseModel):
     name: str
-    direction: Optional[str] = None
+    address: Optional[str] = None
     latitude: Optional[Decimal] = None
     longitude: Optional[Decimal] = None
     phone: Optional[str] = None
@@ -133,3 +133,22 @@ class AgreementTypeEnum(str, Enum):
     FCT = 'fct',
     DUAL = 'dual'
     FCT_DUAL = 'both'
+
+class AgreementBase(BaseModel):
+    createdAt: str
+    startAt: str
+    endAt: str
+    agreementType: AgreementTypeEnum
+    idCompany: int
+    idTeacher: int
+    idLabor: int
+    idStudent: int
+
+class AgreementCreate(AgreementBase):
+    pass
+
+class Agreement(AgreementBase):
+    idAgreement: int
+
+    class Config:
+        orm_mode = True

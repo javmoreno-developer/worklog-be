@@ -1,20 +1,15 @@
 import mysql.connector
 from models import *
-import smtplib
+from constants import *
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from fastapi.responses import FileResponse
 from exceptions import GetUserException
 import secrets
+import smtplib
 import subprocess
 
-FILENAME = "worklog.sql"
-USER = "root"
-PASSWORD = ""
-HOST = "host.docker.internal"
-DATABASE = "worklog"
-
-##Funciones generales
+## Funciones generales
 
 def get_conn_and_cursor():
     conn = mysql.connector.connect(user=USER, password=PASSWORD,host=HOST, database=DATABASE)
@@ -33,7 +28,7 @@ def rollback(conn, cursor):
     conn.rollback()
     close_conn_and_cursor(conn, cursor)
 
-def get_query_and_values(table_name: str, id_name: str, id_value, updated_fields):
+def get_update_query_and_values(table_name: str, id_name: str, id_value, updated_fields):
 
     # Start building the query
     query = f"UPDATE {table_name} SET"
@@ -51,16 +46,8 @@ def get_query_and_values(table_name: str, id_name: str, id_value, updated_fields
 
     return query, values
 
-def check_permission(profile: int, level: int):
-    #profile = get_profile_from_user(id)
-    if(str(profile) == level or str(profile)=="1"):
-        return True
-    else:
-        return "You can't do this opperation"
-
-
 def send_email(emailReceiver: str):
-    # Vemos si el correo existe como usuario
+    # Check if the email exists in the database
     exist = False
     user = check_user_by_email(emailReceiver)
 
@@ -104,26 +91,20 @@ def import_mysql_database():
         
     # Conectar a la base de datos
     file = open(FILENAME)
-    sql = file.read()
+    query = file.read()
 
-    cnx = mysql.connector.connect(
-        host="host.docker.internal",
-        user="root",
-        password="",
-        database="mydatabase"
-    )
-    cursor = cnx.cursor()
+    conn, cursor = get_conn_and_cursor()
 
-    for result in cursor.execute(sql, multi=True):
+    for result in cursor.execute(query, multi=True):
         if result.with_rows:
             print("Rows produced by statement '{}':".format(
             result.statement))
             print(result.fetchall())
         else:
-            print("Number of rows affected by statement '{}': {}".format(
-            result.statement, result.rowcount))
+            print("Number of rows affected by statement '{}': {}".format(result.statement, result.rowcount))
 
-    cnx.close()
+    close_conn_and_cursor(conn, cursor)
+
     return {"message": "database imported"}
 
 ### HAY QUE MIRARLO
@@ -145,30 +126,27 @@ def generate_backup_of_db():
 def get_new_password():
     return secrets.token_hex(4)
 
-def reset_password(id: int, new_password: str):
-        # Get the connection and the cursor
-        conn, cursor = get_conn_and_cursor()
-
-        query, values = get_query_and_values("user", "idUser", id, {"password": new_password})
-
-        cursor.execute(query, values)
-        
-        # Hacer commit de los cambios y cerrar la conexión
-        do_commit(conn, cursor)
+def reset_password(id_user: int, new_password: str):
+    # Get the connection and the cursor
+    conn, cursor = get_conn_and_cursor()
+    # Get the update query
+    query, values = get_update_query_and_values(T_USER, ID_NAME_USER, id_user, {"password": new_password})
+    # Execute the update query
+    cursor.execute(query, values)
+    # Do commit and close connections
+    do_commit(conn, cursor)
 
 
 def check_user_by_email(email: str):
     conn, cursor = get_conn_and_cursor()
-    ## Get the entries
-    query = f"SELECT * FROM user WHERE email='{email}'"
-
+    query = f"SELECT * FROM {T_USER} WHERE email = '{email}'"
     cursor.execute(query)
-
     result = cursor.fetchone()
     row = {}
     if result:
         for i, column in enumerate(cursor.description):
             row[column[0]] = result[i]
+    close_conn_and_cursor(conn, cursor)
     return row
 
 ## XML
@@ -204,3 +182,65 @@ def extract_student_data_from_xml(student: str, position: int):
     profile = ProfileEnum.STUDENT
 
     return UserCreate(name=name, surname=surname, email=email, password=password, picture=picture, linkedin=linkedin, github=github, twitter=twitter, profile=profile)
+
+
+def is_student_under_labor_tutor(id_laboral_tutor: int, id_student: int):
+
+    # CAMINO PARA LLEGAR A SI ES TUTOR O NO DE ESE ALUMNO. 
+    # TENEMOS UNA TABLA AGREEMENT, CON EL ID DEL LABORAL Y EL ID DEL ESTUDIANTE. 
+    # SI HAY OCURRENCIAS, ES SU ALUMNO.
+    # LA COSA ES, QUE ESE ALUMNO PUEDE QUE HAYA ESTADO DOS VECES EN UN CONVENIO CON ESE MISMO LABORAL,
+    # ASÍ QUE HAY QUE COMPROBAR ALGO MÁS
+
+    conn, cursor = get_conn_and_cursor()
+
+    # Try to get the agreement by the id of the laboral tutor and the id of the student
+    query = f"SELECT * FROM {T_AGREEMENT} WHERE {ID_NAME_LABOR} = {id_laboral_tutor} AND {ID_NAME_STUDENT} = {id_student}"
+    cursor.execute(query)
+    result = cursor.fetchone()
+    close_conn_and_cursor(conn, cursor)
+
+    # If there is a result, this laboral tutor is the tutor of this student, else, he/she is not
+    if result:
+        return True
+    else:
+        return False
+    
+def is_student_under_teacher_tutor(id_teacher_tutor: int, id_student: int):
+
+    # CAMINO PARA LLEGAR A SI ES TUTOR O NO DE ESE ALUMNO. 
+    # TENEMOS UNA TABLA AGREEMENT, CON EL ID DEL DOCENTE Y EL ID DEL ESTUDIANTE. 
+    # SI HAY OCURRENCIAS, ES SU ALUMNO.
+    # LA COSA ES, QUE ESE ALUMNO PUEDE QUE HAYA ESTADO DOS VECES EN UN CONVENIO CON ESE MISMO PROFESOR,
+    # ASÍ QUE HAY QUE COMPROBAR ALGO MÁS
+
+    conn, cursor = get_conn_and_cursor()
+
+    # Try to get the agreement by the id of the teacher and the id of the student
+    query = f"SELECT * FROM {T_AGREEMENT} WHERE {ID_NAME_TEACHER} = {id_teacher_tutor} AND {ID_NAME_STUDENT} = {id_student}"
+    cursor.execute(query)
+    result = cursor.fetcone()
+    close_conn_and_cursor(conn, cursor)
+
+    # If there is a result, this teacher tutor is the tutor of this student, else, he/she is not
+    if result:
+        return True
+    else:
+        return False
+
+def is_student_company(id_student: int, id_company: int):
+    
+    # Get the connection
+    conn, cursor = get_conn_and_cursor()
+
+    # Try to get the agreement by the id of the student and the id of the company
+    query = f"SELECT * FROM {T_AGREEMENT} WHERE {ID_NAME_STUDENT} = {id_student} AND {ID_NAME_COMPANY} = {id_company}"
+    cursor.execute(query)
+    result = cursor.fetchone()
+    close_conn_and_cursor(conn, cursor)
+
+    # If there is a result, this company is where the student is at, else, this is not
+    if result:
+        return True
+    else:
+        return False

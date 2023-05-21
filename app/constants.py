@@ -1,3 +1,11 @@
+## DATABASE 
+
+FILENAME = "worklog.sql"
+USER = "root"
+PASSWORD = ""
+HOST = "host.docker.internal"
+DATABASE = "worklog"
+
 ## TABLES
 
 T_USER = "user"
@@ -12,6 +20,9 @@ T_SETTING = "setting"
 ## Column ID names
 
 ID_NAME_USER = "idUser"
+ID_NAME_STUDENT = "idStudent"
+ID_NAME_TEACHER = "idTeacher"
+ID_NAME_LABOR = "idLabor"
 ID_NAME_AGREEMENT = "idAgreement"
 ID_NAME_COMPANY = "idCompany"
 ID_NAME_DAY = "idDay"
