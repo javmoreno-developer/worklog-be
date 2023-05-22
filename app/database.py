@@ -153,24 +153,11 @@ def insert_user_to_db(user: UserCreate, profile: ProfileEnum):
 
         inserted_user = get_user_from_db(id)
 
-        return inserted_user
+        return {"message": "User inserted successfully", "result": inserted_user}
 
     except IntegrityError as e:
         # Rollback changes and close connections
         rollback(conn, cursor)
-        return {"error": str(e)}
-
-
-
-
-    try:
-        # Insert user and get the user inserted
-        insertedUser = insert_user_to_db(teacher, ProfileEnum.TEACHER)
-
-        # Return inserted user
-        return insertedUser
-
-    except InsertUserException as e:
         return {"error": str(e)}
 
 # Insert users by XML
@@ -254,7 +241,7 @@ def insert_unit_to_db(unit: UnitCreate):
 
     # Ejecutar la consulta INSERT
     query = f"INSERT INTO {T_UNIT} (level, name, initials, charUnit, unitType) VALUES (%s, %s, %s, %s, %s)"
-    values = (unit.level, unit.name, unit.initials, "a", unit.unitType)
+    values = (unit.level, unit.name, unit.initials, "A", unit.unitType)
     cursor.execute(query, values)
 
     # Obtener el ID de la nueva unidad
@@ -342,6 +329,7 @@ def login_from_db(auth: LoginCreate):
 
     cursor.execute(query)
     result = cursor.fetchone()
+    close_conn_and_cursor(conn, cursor)
     row = {}
     if result:
         for i, column in enumerate(cursor.description):
@@ -439,7 +427,7 @@ def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields
         # Get the updated object
         formatted_updated_obj = get_object_from_db(table_name, id_name, id_value)
 
-        return {"message": f"{table_name.capitalize} updated successfully", "result": formatted_updated_obj}
+        return {"message": f"{table_name.capitalize()} updated successfully", "result": formatted_updated_obj}
 
     except Exception as e:
         # Rollback changes and close connections
@@ -450,27 +438,22 @@ def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields
 
 # HAY QUE CONTROLAR MENSAJE AL BORRAR REGISTROS QUE DEPENDAN DE OTROS Y DE ERROR AL INTENTAR BORRAR
 # Y CAMBIAR EL MENSAJE SI NO BORRA UN OBJETO PORQUE NO LO ENCUENTRA
-def delete_object_db(table_name: str, id_name: str, id_value: int):
+def delete_object_from_db(table_name: str, id_name: str, id_value: int):
 
     try:
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
         # Get the object that is going to be deleted
-        formatted_deleted_obj = get_object_from_db(
-            table_name, id_name, id_value)
+        formatted_deleted_obj = get_object_from_db(table_name, id_name, id_value)
 
-        # Query to delete the object
+        # Delete object
         delete_query = f"DELETE FROM {table_name} WHERE {id_name} = {id_value}"
-
-        # Execute query to delete the object
         cursor.execute(delete_query)
-
-        # Commit changes and close connections
         do_commit(conn, cursor)
 
         # Success message with deleted object
-        return {"message": f"{table_name.capitalize()} with id {id} has been deleted.", "result": formatted_deleted_obj}
+        return {"message": f"{table_name.capitalize()} with id {id_value} has been deleted.", "result": formatted_deleted_obj}
 
     except Exception as e:
 
@@ -478,4 +461,10 @@ def delete_object_db(table_name: str, id_name: str, id_value: int):
         rollback(conn, cursor)
 
         # Failure message
-        raise Exception(f"Error deleting {table_name}: {str(e)}")
+        return {"error": str(e)}
+
+########## AGREEMENT ##########
+
+def insert_agreement_to_db(agreement: AgreementCreate):
+    
+    conn, cursor = get_conn_and_cursor()

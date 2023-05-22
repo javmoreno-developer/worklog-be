@@ -30,3 +30,7 @@ ID_NAME_ENTRY = "idEntry"
 ID_NAME_MODULE = "idModule"
 ID_NAME_UNIT = "idUnit"
 ID_NAME_SETTING = "idSetting"
+
+# DATE FORMAT
+
+DATE_FORMAT = "%Y-%m-%d"

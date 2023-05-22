@@ -67,8 +67,8 @@ class User(UserBase):
 
 ## Unit
 class UnitEnum(str, Enum):
-    MORNING = 'm'
-    EVENING = "e"
+    MORNING = 'morning'
+    EVENING = "evening"
     
 
 class UnitBase(BaseModel):

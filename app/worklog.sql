@@ -255,8 +255,8 @@ CREATE TABLE `user_has_unit` (
 
 CREATE TABLE `setting` (
   `idSetting` int(1) NOT NULL,
-  `startDate` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `endDate` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `startDate` date NOT NULL DEFAULT '0000-00-00',
+  `endDate` date NOT NULL DEFAULT '0000-00-00',
   `aptitudesPonderation` int(3) NOT NULL DEFAULT 10,
   `subjectsPonderation` int(3) NOT NULL DEFAULT 90,
   `holidays` text DEFAULT NULL
@@ -403,13 +403,13 @@ ALTER TABLE `day`
 -- Filtros para la tabla `entry`
 --
 ALTER TABLE `entry`
-  ADD CONSTRAINT `entry_ibfk_1` FOREIGN KEY (`idAgreement`) REFERENCES `agreement` (`idAgreement`) ON DELETE SET NULL;
+  ADD CONSTRAINT `entry_ibfk_1` FOREIGN KEY (`idAgreement`) REFERENCES `agreement` (`idAgreement`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `module`
 --
 ALTER TABLE `module`
-  ADD CONSTRAINT `module_ibfk_1` FOREIGN KEY (`idUnit`) REFERENCES `unit` (`idUnit`) ON DELETE SET NULL;
+  ADD CONSTRAINT `module_ibfk_1` FOREIGN KEY (`idUnit`) REFERENCES `unit` (`idUnit`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `user_has_unit`

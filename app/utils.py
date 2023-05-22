@@ -4,15 +4,15 @@ from constants import *
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from fastapi.responses import FileResponse
-from exceptions import GetUserException
+from datetime import datetime
 import secrets
 import smtplib
-import subprocess
+import os
 
 ## Funciones generales
 
 def get_conn_and_cursor():
-    conn = mysql.connector.connect(user=USER, password=PASSWORD,host=HOST, database=DATABASE)
+    conn = mysql.connector.connect(user=USER, password=PASSWORD, host=HOST, database=DATABASE)
     cursor = conn.cursor()
     return conn, cursor
 
@@ -107,20 +107,14 @@ def import_mysql_database():
 
     return {"message": "database imported"}
 
-### HAY QUE MIRARLO
 def generate_backup_of_db():
-        
-    # Set the backup file name
-    filename = f"{DATABASE}.sql"    
-    # Build the command to generate the backup
-    command = f"mysqldump -u {USER} -p{PASSWORD} {DATABASE} > {filename}"
-    # Execute the command using subprocess
-    try:
-        subprocess.run(command, shell=True, check=True)
-        # Return the backup file
-        return FileResponse(filename, media_type="application/octet-stream", filename=filename)
-    except subprocess.CalledProcessError:
-        raise subprocess.CalledProcessError({"error": "Failed to generate backup."})
+    archivo_path = f"./{DATABASE}.sql"  # Ruta al archivo que deseas enviar
+    if os.path.isfile(archivo_path):
+        with open(archivo_path, 'r') as archivo:
+            contenido = archivo.read()
+        return contenido
+    else:
+        return {"message": "El archivo no existe o la ruta es incorrecta"}
 
 
 def get_new_password():
@@ -244,3 +238,12 @@ def is_student_company(id_student: int, id_company: int):
         return True
     else:
         return False
+
+# Validate date format
+def is_date_format_valid(date_list, date_format):
+    for date_str in date_list:
+        try:
+            datetime.strptime(date_str, date_format)
+        except ValueError:
+            return False
+    return True
