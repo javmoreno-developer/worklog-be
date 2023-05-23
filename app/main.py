@@ -74,21 +74,21 @@ async def get_user(id_check: int, id_user: int, api_key: str = Header(...)):
 async def add_student(id_check: int, student: UserCreate, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
-    return insert_user_to_db(student, ProfileEnum.STUDENT)
+    return insert_user_to_db(student, ProfileEnum.STUDENT, StatusEnum.DISABLED)
 
 # Add teacher
 @app.post("/api/user/add-teacher")
 async def add_teacher(id_check: int, teacher: UserCreate, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
-    return insert_user_to_db(teacher, ProfileEnum.TEACHER)
+    return insert_user_to_db(teacher, ProfileEnum.TEACHER, StatusEnum.ENABLED)
 
 # Add laboral tutor
 @app.post("/api/user/add-labor")
 async def add_labor(id_check: int, labor: UserCreate, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
-    return insert_user_to_db(labor, ProfileEnum.LABOR)
+    return insert_user_to_db(labor, ProfileEnum.LABOR, StatusEnum.ENABLED)
 
 # Add students set with XML
 @app.post("/api/user/add-students-set")
@@ -103,6 +103,9 @@ async def add_students_set(id_check: int, request: Request, api_key: str = Heade
 async def delete_user(id_check: int, id_user: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
+    profile = get_profile_from_user(id_user)
+    if(profile == ProfileEnum.ADMIN.value):
+        raise HTTPException(status_code=403, detail="The admin user can not be deleted")
     return delete_object_from_db(T_USER, ID_NAME_USER, id_user)
 
 
@@ -154,9 +157,6 @@ async def get_company(id_check: int, id_company: int, api_key: str = Header(...)
     if profile in [ProfileEnum.TEACHER.value, ProfileEnum.ADMIN.value]:
         grant_access = True
     # If its an student, check if its his/her company
-    ## HAY QUE HACER EL CHECKEOEEOOEOEOEOEOEO AQUÍ
-    # PUEDE HABER UN MISMO ALUMNO EN MÁS DE UN CONVENIO A LA VEZ(de otros años),
-    # HAY QUE DISTINGIRLO CON ALGO MÁS. (CONVENIO ACTIVO)
     elif profile == ProfileEnum.STUDENT.value and is_student_company(id_check, id_company):
         grant_access = True
 
@@ -299,11 +299,23 @@ async def update_unit(id_check: int, id_unit: int, updated_fields: dict, api_key
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
     return update_table_db(T_UNIT, ID_NAME_UNIT, id_unit, updated_fields)
 
+########## ENTRY ##########
+
+@app.get("/api/entry/get")
+async def get_entry(id_check: int, id_entry: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]))
+
+@app.post("/api/entry/add")
+async def add_entry(id_check: int, id_entry: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.STUDENT.value]))
+
 ########## DAY ##########
 
 ## Get day
 
-@app.get("/api/day")
+@app.get("/api/day/get")
 async def get_day(id_check: int, id_day: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]))
@@ -319,10 +331,10 @@ async def update_day(id_check: int, id_day: int, updated_fields: dict, api_key: 
 
 ########## AGREEMENT ##########
 
-## Get agreement
-
 ## CONTROLAR EN EL GET QUE EL ALUMNO SOLO PUEDA VER SU CONVENIO Y LABORAL SOLO EL DE LOS QUE TUTORIZA
 # NO SE SI HACER OTRO END POINT PARA OBTENER EL CONVENIO DE UN ESTUDIANTE
+
+# Get agreement
 @app.get("/api/agreement/get")
 async def get_agreement(id_check: int, id_agreement: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
@@ -347,31 +359,31 @@ async def get_agreement(id_check: int, id_agreement: int, api_key: str = Header(
     else:
         raise HTTPException(status_code=401, detail="Permission denied")
 
-## Add agreement
+# Add agreement
 @app.post("/api/agreement/add")
 async def add_agreement(id_check: int, agreement: AgreementCreate, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
     return insert_agreement_to_db(agreement)
 
-## Delete agreement
+# Delete agreement
 @app.delete("/api/agreement/delete")
 async def delete_agreement(id_check: int, id_agreement: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
     return delete_object_from_db(T_AGREEMENT, ID_NAME_AGREEMENT, id_agreement)
 
-## Update agreement
+# Update agreement
 @app.put("/api/agreement/update")
 async def update_agreement(id_check: int, id_agreement: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
     return update_table_db(T_AGREEMENT, ID_NAME_AGREEMENT, id_agreement, updated_fields)
 
-########## SETTINGS ##########
+########## SCHOLAR YEAR ##########
 
 # Update grade duration
-@app.put("/api/setting/grade_duration")
+@app.put("/api/scholar-year/grade-duration")
 async def update_grade_duration(id_check: int, start_date: str, end_date: str, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
@@ -381,11 +393,19 @@ async def update_grade_duration(id_check: int, start_date: str, end_date: str, a
     # Check that start date is smaller than end date
     if start_date and end_date and start_date >= end_date:
         raise HTTPException(status_code=400, detail="Start date must be before end date")
-    grade_duration = {"startDate": start_date, "endDate": end_date}
-    return update_table_db(T_SETTING, ID_NAME_SETTING, 1, grade_duration)
+    year = get_year_from_dates(start_date, end_date)
+    grade_duration = {"startDate": start_date, "endDate": end_date, "year": year}
+    return update_table_db(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, 1, grade_duration)
+
+# Update holidays
+@app.put("/api/scholar-year/holidays")
+async def update_holidays(id_check: int, holidays: dict, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    return update_table_db(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, 1, holidays)
 
 # Update ponderation
-@app.put("/api/setting/ponderation")
+@app.put("/api/scholar-year/ponderation")
 async def update_ponderation(id_check: int, aptitudes_ponderation: int, subjects_ponderation: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
@@ -394,12 +414,4 @@ async def update_ponderation(id_check: int, aptitudes_ponderation: int, subjects
         raise HTTPException(status_code=400, detail="Aptitudes and Subjects must sum a total of 100")
     # If ponderation equals 100, update it
     ponderation = {"aptitudesPonderation": aptitudes_ponderation, "subjectsPonderation": subjects_ponderation}
-    return update_table_db(T_SETTING, ID_NAME_SETTING, 1, ponderation)
-
-# Update holidays
-@app.put("/api/setting/holidays")
-async def update_holidays(id_check: int, holidays: dict,api_key: str = Header(...)):
-   
-    await(validate_api_key(api_key))
-    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
-    return update_table_db(T_SETTING, ID_NAME_SETTING, 1, holidays)
+    return update_table_db(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, 1, ponderation)

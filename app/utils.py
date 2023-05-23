@@ -9,7 +9,7 @@ import secrets
 import smtplib
 import os
 
-## Funciones generales
+# Funciones generales
 
 def get_conn_and_cursor():
     conn = mysql.connector.connect(user=USER, password=PASSWORD, host=HOST, database=DATABASE)
@@ -34,9 +34,13 @@ def get_update_query_and_values(table_name: str, id_name: str, id_value, updated
     query = f"UPDATE {table_name} SET"
     values = []
 
-    # Append to the query values that are not none, excluding ID
+    # Append to the query values that are not none, excluding ID and profile
+    updated_fields.pop(id_name, None)
+    updated_fields.pop("profile", None)
+    updated_fields.pop("isActive", None)
+
     for key, value in updated_fields.items():
-        if value is not None and key != id_name:
+        if value is not None:
             query += f" {key} = %s,"
             values.append(value)
 
@@ -85,8 +89,6 @@ def send_email(emailReceiver: str):
     else:
         return {"message": "The user does not exist"}
     
-
-
 def import_mysql_database():
         
     # Conectar a la base de datos
@@ -116,7 +118,6 @@ def generate_backup_of_db():
     else:
         return {"message": "El archivo no existe o la ruta es incorrecta"}
 
-
 def get_new_password():
     return secrets.token_hex(4)
 
@@ -130,7 +131,6 @@ def reset_password(id_user: int, new_password: str):
     # Do commit and close connections
     do_commit(conn, cursor)
 
-
 def check_user_by_email(email: str):
     conn, cursor = get_conn_and_cursor()
     query = f"SELECT * FROM {T_USER} WHERE email = '{email}'"
@@ -143,7 +143,7 @@ def check_user_by_email(email: str):
     close_conn_and_cursor(conn, cursor)
     return row
 
-## XML
+# XML
 
 def extract_student_data_from_xml(student: str, position: int):
     # Check that the child is a student tag
@@ -165,6 +165,9 @@ def extract_student_data_from_xml(student: str, position: int):
     email_elem = student.find('email')
     if email_elem is None or email_elem.text is None:
         raise ValueError(f"Mandatory field 'email' is missing in [{position}]")
+    result = check_user_by_email(email_elem.text)
+    if result:
+        raise ValueError(f"User with the email '{email_elem.text}' already exists in [{position}]")
     email = email_elem.text
     # Optional fields
     password = student.find('password').text if student.find('password') is not None and student.find('password').text is not None else ""
@@ -175,8 +178,9 @@ def extract_student_data_from_xml(student: str, position: int):
     # Set STUDENT PROFILE
     profile = ProfileEnum.STUDENT
 
-    return UserCreate(name=name, surname=surname, email=email, password=password, picture=picture, linkedin=linkedin, github=github, twitter=twitter, profile=profile)
+    return UserCreate(name=name, surname=surname, email=email, password=password, picture=picture, linkedin=linkedin, github=github, twitter=twitter, profile=profile, isActive=StatusEnum.DISABLED)
 
+########## CHECKS ##########
 
 def is_student_under_labor_tutor(id_laboral_tutor: int, id_student: int):
 
@@ -239,7 +243,6 @@ def is_student_company(id_student: int, id_company: int):
     else:
         return False
 
-# Validate date format
 def is_date_format_valid(date_list, date_format):
     for date_str in date_list:
         try:
@@ -247,3 +250,9 @@ def is_date_format_valid(date_list, date_format):
         except ValueError:
             return False
     return True
+
+
+def get_year_from_dates(start_date, end_date):
+    start_year = datetime.strptime(start_date, '%Y-%m-%d').year
+    end_year = datetime.strptime(end_date, '%Y-%m-%d').year
+    return f"{start_year}-{end_year}"

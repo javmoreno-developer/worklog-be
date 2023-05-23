@@ -35,8 +35,7 @@ CREATE TABLE `agreement` (
   `agreementType` enum('fct','dual','fct+dual') NOT NULL,
   `idCompany` int(11) NULL,
   `idTeacher` int(11) NULL,
-  `idLabor` int(11) NULL,
-  `idStudent` int(11) NULL
+  `idLabor` int(11) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
@@ -233,37 +232,42 @@ CREATE TABLE `user` (
   `linkedin` varchar(255) NOT NULL,
   `github` varchar(255) NOT NULL,
   `twitter` varchar(255) NOT NULL,
-  `profile` enum('1','2','3','4') NOT NULL
+  `profile` enum('1','2','3','4') NOT NULL,
+  `isActive` tinyint(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
 
 --
--- Estructura de tabla para la tabla `user_has_unit`
+-- Estructura de tabla para la tabla `student_has_scholar_year`
 --
 
-CREATE TABLE `user_has_unit` (
-  `idUser` int(11) NOT NULL,
-  `idUnit` int(11) NOT NULL
+CREATE TABLE `student_has_scholar_year` (
+  `idStudentYear` int(11) NOT NULL,
+  `idStudent` int(11) NOT NULL,
+  `idScholarYear` int(11) NOT NULL,
+  `idUnit` int(11) NOT NULL,
+  `idAgreement` int(11) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
 
 --
--- Estructura de tabla para la tabla `settings`
+-- Estructura de tabla para la tabla `scholarYear`
 --
 
-CREATE TABLE `setting` (
-  `idSetting` int(1) NOT NULL,
+CREATE TABLE `scholarYear` (
+  `idScholarYear` int(1) NOT NULL,
   `startDate` date NOT NULL DEFAULT '0000-00-00',
   `endDate` date NOT NULL DEFAULT '0000-00-00',
+  `year` varchar(9) NOT NULL DEFAULT '0000/0000',
   `aptitudesPonderation` int(3) NOT NULL DEFAULT 10,
   `subjectsPonderation` int(3) NOT NULL DEFAULT 90,
   `holidays` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `setting` (`idSetting`, `startDate`, `endDate`, `aptitudesPonderation`, `subjectsPonderation`, `holidays`) VALUES
-(1, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO `scholarYear` (`idScholarYear`, `startDate`, `endDate`, `year`, `aptitudesPonderation`, `subjectsPonderation`, `holidays`) VALUES
+(1, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
 
 -- --------------------------------------------------------
 
@@ -272,10 +276,10 @@ INSERT INTO `setting` (`idSetting`, `startDate`, `endDate`, `aptitudesPonderatio
 --
 
 --
--- Indices de la tabla `setting`
+-- Indices de la tabla `scholarYear`
 --
-ALTER TABLE `setting`
-  ADD PRIMARY KEY (`idSetting`);
+ALTER TABLE `scholarYear`
+  ADD PRIMARY KEY (`idScholarYear`);
 
 --
 -- Indices de la tabla `agreement`
@@ -284,8 +288,7 @@ ALTER TABLE `agreement`
   ADD PRIMARY KEY (`idAgreement`),
   ADD KEY `idCompany` (`idCompany`),
   ADD KEY `idTeacher` (`idTeacher`),
-  ADD KEY `idLabor` (`idLabor`),
-  ADD KEY `idStudent` (`idStudent`);
+  ADD KEY `idLabor` (`idLabor`);
 
 --
 -- Indices de la tabla `company`
@@ -311,8 +314,7 @@ ALTER TABLE `entry`
 -- Indices de la tabla `module`
 --
 ALTER TABLE `module`
-  ADD PRIMARY KEY (`idModule`),
-  ADD KEY `idUnit` (`idUnit`);
+  ADD PRIMARY KEY (`idModule`);
 
 --
 -- Indices de la tabla `unit`
@@ -328,15 +330,20 @@ ALTER TABLE `user`
   ADD UNIQUE KEY `user_index_0` (`email`);
 
 --
--- Indices de la tabla `user_has_unit`
+-- Indices de la tabla `student_has_scholar_year`
 --
-ALTER TABLE `user_has_unit`
-  ADD PRIMARY KEY (`idUser`,`idUnit`),
-  ADD KEY `idUnit` (`idUnit`);
+ALTER TABLE `student_has_scholar_year`
+  ADD PRIMARY KEY (`idStudentYear`);
 
 --
 -- AUTO_INCREMENT de las tablas volcadas
 --
+
+--
+-- AUTO_INCREMENT de la tabla `scholarYear`
+--
+ALTER TABLE `scholarYear`
+  MODIFY `idScholarYear` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `agreement`
@@ -381,6 +388,12 @@ ALTER TABLE `user`
   MODIFY `idUser` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de la tabla `student_has_scholar_year`
+--
+ALTER TABLE `student_has_scholar_year`
+  MODIFY `idStudentYear` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- Restricciones para tablas volcadas
 --
 
@@ -390,8 +403,7 @@ ALTER TABLE `user`
 ALTER TABLE `agreement`
   ADD CONSTRAINT `agreement_ibfk_1` FOREIGN KEY (`idCompany`) REFERENCES `company` (`idCompany`) ON DELETE SET NULL,
   ADD CONSTRAINT `agreement_ibfk_2` FOREIGN KEY (`idTeacher`) REFERENCES `user` (`idUser`) ON DELETE SET NULL,
-  ADD CONSTRAINT `agreement_ibfk_3` FOREIGN KEY (`idLabor`) REFERENCES `user` (`idUser`) ON DELETE SET NULL,
-  ADD CONSTRAINT `agreement_ibfk_4` FOREIGN KEY (`idStudent`) REFERENCES `user` (`idUser`) ON DELETE SET NULL;
+  ADD CONSTRAINT `agreement_ibfk_3` FOREIGN KEY (`idLabor`) REFERENCES `user` (`idUser`) ON DELETE SET NULL;
 
 --
 -- Filtros para la tabla `day`
@@ -412,11 +424,13 @@ ALTER TABLE `module`
   ADD CONSTRAINT `module_ibfk_1` FOREIGN KEY (`idUnit`) REFERENCES `unit` (`idUnit`) ON DELETE CASCADE;
 
 --
--- Filtros para la tabla `user_has_unit`
+-- Filtros para la tabla `student_has_scholar_year`
 --
-ALTER TABLE `user_has_unit`
-  ADD CONSTRAINT `user_has_unit_ibfk_1` FOREIGN KEY (`idUser`) REFERENCES `user` (`idUser`) ON DELETE CASCADE,
-  ADD CONSTRAINT `user_has_unit_ibfk_2` FOREIGN KEY (`idUnit`) REFERENCES `unit` (`idUnit`) ON DELETE CASCADE;
+ALTER TABLE `student_has_scholar_year`
+  ADD CONSTRAINT `student_has_scholar_year_ibfk_1` FOREIGN KEY (`idStudent`) REFERENCES `user` (`idUser`) ON DELETE CASCADE,
+  ADD CONSTRAINT `student_has_scholar_year_ibfk_2` FOREIGN KEY (`idScholarYear`) REFERENCES `scholarYear` (`idScholarYear`) ON DELETE CASCADE,
+  ADD CONSTRAINT `student_has_scholar_year_ibfk_3` FOREIGN KEY (`idUnit`) REFERENCES `unit` (`idUnit`) ON DELETE CASCADE,
+  ADD CONSTRAINT `student_has_scholar_year_ibfk_4` FOREIGN KEY (`idAgreement`) REFERENCES `agreement` (`idAgreement`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

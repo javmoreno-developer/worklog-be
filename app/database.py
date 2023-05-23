@@ -106,13 +106,12 @@ def get_profile_from_user(id_user: int):
         raise GetUserException(f"error: {str(e)}")
 
 # Insert user
-def insert_user_to_db(user: UserCreate, profile: ProfileEnum):
+def insert_user_to_db(user: UserCreate, profile: ProfileEnum, status: StatusEnum):
 
     try:
         # Check if email, name, and surname fields are not empty
         if not user.email or not user.name or not user.surname:
-            raise InsertUserException(
-                "error adding user, required fields are missing")
+            raise InsertUserException("error adding user, required fields are missing")
 
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
@@ -124,10 +123,10 @@ def insert_user_to_db(user: UserCreate, profile: ProfileEnum):
 
         if result:
             # Email exists
-            return {"error": "Error adding user, email already registered"}
+            raise HTTPException(status_code=409, detail="Error adding user, email already registered")
 
         # Query
-        query = f"INSERT INTO {T_USER} (name, surname, email, password, picture, linkedin, github, twitter, profile) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        query = f"INSERT INTO {T_USER} (name, surname, email, password, picture, linkedin, github, twitter, profile, isActive) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
 
         # Values for the query
         values = (
@@ -139,7 +138,8 @@ def insert_user_to_db(user: UserCreate, profile: ProfileEnum):
             user.linkedin,
             user.github,
             user.twitter,
-            profile.value
+            profile.value,
+            status.value
         )
 
         # Execute query
@@ -151,7 +151,7 @@ def insert_user_to_db(user: UserCreate, profile: ProfileEnum):
         # Commit changes and close connections
         do_commit(conn, cursor)
 
-        inserted_user = get_user_from_db(id)
+        inserted_user = get_object_from_db(T_USER, ID_NAME_USER, id)
 
         return {"message": "User inserted successfully", "result": inserted_user}
 
@@ -177,7 +177,7 @@ def insert_students_to_db_xml(students_xml: str):
         # Insert the student. If fails, continue the loop to get the next student
         try:
             student = extract_student_data_from_xml(student, position)
-            insert_user_to_db(student, ProfileEnum.STUDENT)
+            insert_user_to_db(student, ProfileEnum.STUDENT, StatusEnum.DISABLED)
             # send_email_generating_password(email)
             successful_inserts.append(f"{student.surname}, {student.name}")
         except Exception as e:
@@ -185,11 +185,12 @@ def insert_students_to_db_xml(students_xml: str):
             continue
 
     if len(failed_inserts) == 0:
-        return {'message': 'All users inserted successfully.'}
+        return {'message': 'All users inserted successfully'}
     else:
+        message = "Some users were not inserted" if len(successful_inserts) else "No users were inserted"
         failed_inserts_position = [insert[0] for insert in failed_inserts]
         error_messages = [insert[1] for insert in failed_inserts]
-        return {'message': 'Some users were not inserted.', 'successful_inserts': successful_inserts, 'failed_inserts': f'Elements in the position {failed_inserts_position} were not inserted', 'error_messages': error_messages}
+        return {'message': message, 'successful_inserts': successful_inserts, 'failed_inserts': f'Students {failed_inserts_position} were not inserted', 'error_messages': error_messages}
 
 # Delete user
 def delete_user_from_db(id_user: int):
@@ -381,7 +382,7 @@ def get_object_from_db(table_name: str, id_name: int, id_value: int):
         cursor.execute(select_object_query)
         object = cursor.fetchone()
 
-        close_conn_and_cursor(conn, cursor)
+        
 
         # Format the object with column names
         formatted_object = None
@@ -392,13 +393,17 @@ def get_object_from_db(table_name: str, id_name: int, id_value: int):
             else:
                 return {"error": "Object has not been built correctly"}
         else:
-            return {"error:": "Object does not exists"}
+            return
             
 
     except Exception as e:
         # Rollback changes and close connections
-        rollback(conn, cursor)
+        conn.rollback()
         raise Exception(f"Error retrieving the object: {str(e)}")
+    
+    finally:
+        cursor.close()
+        conn.close()
 
 ########## General UPDATE for all tables  ##########
 
@@ -436,8 +441,7 @@ def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields
 
 ########## General DELETE for all tables  ##########
 
-# HAY QUE CONTROLAR MENSAJE AL BORRAR REGISTROS QUE DEPENDAN DE OTROS Y DE ERROR AL INTENTAR BORRAR
-# Y CAMBIAR EL MENSAJE SI NO BORRA UN OBJETO PORQUE NO LO ENCUENTRA
+# CAMBIAR EL MENSAJE SI NO BORRA UN OBJETO PORQUE NO LO ENCUENTRA
 def delete_object_from_db(table_name: str, id_name: str, id_value: int):
 
     try:
@@ -450,21 +454,75 @@ def delete_object_from_db(table_name: str, id_name: str, id_value: int):
         # Delete object
         delete_query = f"DELETE FROM {table_name} WHERE {id_name} = {id_value}"
         cursor.execute(delete_query)
-        do_commit(conn, cursor)
+        conn.commit()
 
+        # Error message
+        if formatted_deleted_obj == None:
+            return {"error": "Object not found"}
         # Success message with deleted object
         return {"message": f"{table_name.capitalize()} with id {id_value} has been deleted.", "result": formatted_deleted_obj}
 
     except Exception as e:
 
-        # Rollback changes and close connections
-        rollback(conn, cursor)
+        # Rollback changes
+        conn.rollback()
 
         # Failure message
         return {"error": str(e)}
+    
+    finally:
+        cursor.close()
+        conn.close()
 
 ########## AGREEMENT ##########
 
+def is_user_this_role(id_user: int, role: ProfileEnum):
+    if get_profile_from_user(id_user) == role.value:
+        return True
+    else:
+        return {"error": f"The user with the id {id_user} is not a {role}"}
+
+
 def insert_agreement_to_db(agreement: AgreementCreate):
-    
-    conn, cursor = get_conn_and_cursor()
+
+    try:
+
+        # Get the connection and the cursor
+        conn, cursor = get_conn_and_cursor()
+
+        # Check if the foreign keys with the roles are valid
+        if get_profile_from_user(agreement.idTeacher) != ProfileEnum.TEACHER:
+            raise HTTPException(status_code=400, detail="Role for the provided idTeacher is wrong")
+        if get_profile_from_user(agreement.idLabor) != ProfileEnum.LABOR:
+            raise HTTPException(status_code=400, detail="Role for the provided idLabor is wrong")
+
+        # Query
+        query = f"INSERT INTO {T_AGREEMENT} (startAt, endAt, agreementType, idCompany, idTeacher, idLabor) VALUES (%s, %s, %s, %s, %s, %s)"
+
+        # Values for the query
+        values = (
+            agreement.startAt,
+            agreement.endAt,
+            agreement.agreementType,
+            agreement.idCompany,
+            agreement.idTeacher,
+            agreement.idLabor
+        )
+
+        # Execute query
+        cursor.execute(query, values)
+
+        # Get the ID of the new row
+        id = cursor.lastrowid
+
+        # Commit changes and close connections
+        do_commit(conn, cursor)
+
+        inserted_agreement = get_object_from_db(T_AGREEMENT, ID_NAME_AGREEMENT, id)
+
+        return {"message": "Agreement inserted successfully", "result": inserted_agreement}
+
+    except IntegrityError as e:
+        # Rollback changes and close connections
+        rollback(conn, cursor)
+        return {"error": str(e)}

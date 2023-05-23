@@ -39,6 +39,10 @@ class Module(ModuleBase):
 
 ## User
 
+class StatusEnum(int, Enum):
+    DISABLED = 0,
+    ENABLED = 1
+
 class ProfileEnum(str, Enum):
     ADMIN = '1'
     STUDENT = '2'
@@ -55,6 +59,7 @@ class UserBase(BaseModel):
     github: str
     twitter: str
     profile: ProfileEnum
+    isActive: StatusEnum
 
 class UserCreate(UserBase):
     pass
@@ -135,14 +140,12 @@ class AgreementTypeEnum(str, Enum):
     FCT_DUAL = 'both'
 
 class AgreementBase(BaseModel):
-    createdAt: str
     startAt: str
     endAt: str
     agreementType: AgreementTypeEnum
     idCompany: int
     idTeacher: int
     idLabor: int
-    idStudent: int
 
 class AgreementCreate(AgreementBase):
     pass

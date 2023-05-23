@@ -15,7 +15,7 @@ T_ENTRY = "entry"
 T_DAY = "day"
 T_MODULE = "module"
 T_UNIT = "unit"
-T_SETTING = "setting"
+T_SCHOLAR_YEAR = "scholarYear"
 
 ## Column ID names
 
@@ -29,7 +29,7 @@ ID_NAME_DAY = "idDay"
 ID_NAME_ENTRY = "idEntry"
 ID_NAME_MODULE = "idModule"
 ID_NAME_UNIT = "idUnit"
-ID_NAME_SETTING = "idSetting"
+ID_NAME_SCHOLAR_YEAR = "idScholarYear"
 
 # DATE FORMAT
 
