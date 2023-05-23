@@ -251,13 +251,6 @@ async def get_entries(id_check: int, id_user: int, api_key: str = Header(...)):
 
 ########## DATABASE ##########
 
-# Import database
-@app.post("/api/db/import")
-async def import_db(id_check: int, api_key: str = Header(...)):
-    await(validate_api_key(api_key))
-    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
-    return import_mysql_database()
-
 # Backup database
 @app.get("/api/db/backup")
 async def backup_database(id_check: int, api_key: str = Header(...)):
@@ -403,4 +396,10 @@ async def update_ponderation(id_check: int, aptitudes_ponderation: int, subjects
     ponderation = {"aptitudesPonderation": aptitudes_ponderation, "subjectsPonderation": subjects_ponderation}
     return update_table_db(T_SETTING, ID_NAME_SETTING, 1, ponderation)
 
-
+# Update holidays
+@app.put("/api/setting/holidays")
+async def update_holidays(id_check: int, holidays: dict,api_key: str = Header(...)):
+   
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    return update_table_db(T_SETTING, ID_NAME_SETTING, 1, holidays)
