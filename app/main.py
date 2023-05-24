@@ -198,6 +198,13 @@ async def get_module(id_check: int, id_module: int, api_key: str = Header(...)):
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]))
     return get_object_from_db(T_MODULE, ID_NAME_MODULE, id_module)
 
+## Get all modules
+@app.get("/api/module/get/all")
+async def get_module(id_check: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    return get_all_rows_from_table(T_MODULE)
+
 ## Add module
 
 @app.post("/api/module/add")

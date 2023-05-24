@@ -405,6 +405,40 @@ def get_object_from_db(table_name: str, id_name: int, id_value: int):
         cursor.close()
         conn.close()
 
+def get_all_rows_from_table(table_name: str):
+    try:
+        # Get the connection and the cursor
+        conn, cursor = get_conn_and_cursor()
+
+        # Get the table's column names
+        select_columns_query = f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'"
+        cursor.execute(select_columns_query)
+        column_names = [col[0] for col in cursor.fetchall()]
+
+        # Query to get all rows
+        select_all_rows_query = f"SELECT * FROM {table_name}"
+
+        # Execute query to retrieve all rows
+        cursor.execute(select_all_rows_query)
+        rows = cursor.fetchall()
+
+        # Format the rows with column names
+        formatted_rows = []
+        for row in rows:
+            formatted_row = {column_names[i]: value for i, value in enumerate(row)}
+            formatted_rows.append(formatted_row)
+
+        return formatted_rows
+
+    except Exception as e:
+        # Rollback changes and close connections
+        conn.rollback()
+        raise Exception(f"Error retrieving rows from the table: {str(e)}")
+
+    finally:
+        cursor.close()
+        conn.close()
+
 ########## General UPDATE for all tables  ##########
 
 def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields: dict):
