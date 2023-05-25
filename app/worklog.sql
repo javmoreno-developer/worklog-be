@@ -29,9 +29,11 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `agreement` (
   `idAgreement` int(11) NOT NULL,
-  `createdAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `startAt` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `endAt` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
+  `dualStartAt` timestamp NULL,
+  `dualEndAt` timestamp NULL,
+  `fctStartAt` timestamp NULL,
+  `fctEndAt` timestamp NULL,
   `agreementType` enum('fct','dual','fct+dual') NOT NULL,
   `idCompany` int(11) NULL,
   `idTeacher` int(11) NULL,
@@ -107,15 +109,16 @@ INSERT INTO `company` (`idCompany`, `name`, `address`, `latitude`, `longitude`, 
 -- --------------------------------------------------------
 
 --
--- Estructura de tabla para la tabla `day`
+-- Estructura de tabla para la tabla `comment`
 --
 
-CREATE TABLE `day` (
-  `idDay` int(11) NOT NULL,
+CREATE TABLE `comment` (
+  `idComment` int(11) NOT NULL,
   `text` varchar(255) NOT NULL,
-  `hours` time NOT NULL,
+  `hours` time NULL,
   `observations` varchar(255) DEFAULT NULL,
-  `idEntry` int(11) NOT NULL
+  `idEntry` int(11) NOT NULL,
+  `idModule` int(11) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
@@ -126,7 +129,8 @@ CREATE TABLE `day` (
 
 CREATE TABLE `entry` (
   `idEntry` int(11) NOT NULL,
-  `date` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `startWeek` date NOT NULL,
+  `endWeek` date NOT NULL,
   `idAgreement` int(11) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -239,10 +243,10 @@ CREATE TABLE `user` (
 -- --------------------------------------------------------
 
 --
--- Estructura de tabla para la tabla `student_has_scholar_year`
+-- Estructura de tabla para la tabla `student_scholar_year`
 --
 
-CREATE TABLE `student_has_scholar_year` (
+CREATE TABLE `student_scholar_year` (
   `idStudentYear` int(11) NOT NULL,
   `idStudent` int(11) NOT NULL,
   `idScholarYear` int(11) NOT NULL,
@@ -257,10 +261,10 @@ CREATE TABLE `student_has_scholar_year` (
 --
 
 CREATE TABLE `scholarYear` (
-  `idScholarYear` int(1) NOT NULL,
+  `idScholarYear` int(11) NOT NULL,
   `startDate` date NOT NULL DEFAULT '0000-00-00',
   `endDate` date NOT NULL DEFAULT '0000-00-00',
-  `year` varchar(9) NOT NULL DEFAULT '0000/0000',
+  `year` varchar(9) NOT NULL DEFAULT '0000-0000',
   `aptitudesPonderation` int(3) NOT NULL DEFAULT 10,
   `subjectsPonderation` int(3) NOT NULL DEFAULT 90,
   `holidays` text DEFAULT NULL
@@ -268,6 +272,55 @@ CREATE TABLE `scholarYear` (
 
 INSERT INTO `scholarYear` (`idScholarYear`, `startDate`, `endDate`, `year`, `aptitudesPonderation`, `subjectsPonderation`, `holidays`) VALUES
 (1, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+--
+-- Estructura de tabla para la tabla `report`
+--
+
+CREATE TABLE `report` (
+  `idReport` int(11) NOT NULL,
+  `date` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `idAgreement` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Estructura de tabla para la tabla `item`
+--
+
+CREATE TABLE `item` (
+  `idItem` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `item` (`idItem`, `name`) VALUES
+(1, 'Puntualidad'),
+(2, 'Habilidades y detrezas'),
+(3, 'Ténicas y procedimientos'),
+(4, 'Competencias profesionales'),
+(5, 'Relaciones con el equipo de trabajo y detrezas');
+
+--
+-- Estructura de tabla para la tabla `report_item`
+--
+
+CREATE TABLE `report_item` (
+  `idReport` int(11) NOT NULL,
+  `idItem` int(11) NOT NULL,
+  `grade` enum('No score','1','2','3','4','5') NOT NULL,
+  `observation` text NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Estructura de tabla para la tabla `report_module`
+--
+
+CREATE TABLE `report_module` (
+  `idReport` int(11) NOT NULL,
+  `idModule` int(11) NOT NULL,
+  `grade` enum('No score','1','2','3','4','5') NOT NULL,
+  `observation` text NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 
 -- --------------------------------------------------------
 
@@ -280,6 +333,30 @@ INSERT INTO `scholarYear` (`idScholarYear`, `startDate`, `endDate`, `year`, `apt
 --
 ALTER TABLE `scholarYear`
   ADD PRIMARY KEY (`idScholarYear`);
+
+--
+-- Indices de la tabla `report`
+--
+ALTER TABLE `report`
+  ADD PRIMARY KEY (`idReport`);
+
+--
+-- Indices de la tabla `item`
+--
+ALTER TABLE `item`
+  ADD PRIMARY KEY (`idItem`);
+
+--
+-- Indices de la tabla `report_item`
+--
+ALTER TABLE `report_item`
+  ADD PRIMARY KEY (`idReport`, `idItem`);
+
+--
+-- Indices de la tabla `report_module`
+--
+ALTER TABLE `report_module`
+  ADD PRIMARY KEY (`idReport`, `idModule`);
 
 --
 -- Indices de la tabla `agreement`
@@ -297,11 +374,12 @@ ALTER TABLE `company`
   ADD PRIMARY KEY (`idCompany`);
 
 --
--- Indices de la tabla `day`
+-- Indices de la tabla `comment`
 --
-ALTER TABLE `day`
-  ADD PRIMARY KEY (`idDay`),
-  ADD KEY `idEntry` (`idEntry`);
+ALTER TABLE `comment`
+  ADD PRIMARY KEY (`idComment`),
+  ADD KEY `idEntry` (`idEntry`),
+  ADD KEY `idModule` (`idModule`);
 
 --
 -- Indices de la tabla `entry`
@@ -330,9 +408,9 @@ ALTER TABLE `user`
   ADD UNIQUE KEY `user_index_0` (`email`);
 
 --
--- Indices de la tabla `student_has_scholar_year`
+-- Indices de la tabla `student_scholar_year`
 --
-ALTER TABLE `student_has_scholar_year`
+ALTER TABLE `student_scholar_year`
   ADD PRIMARY KEY (`idStudentYear`);
 
 --
@@ -344,6 +422,18 @@ ALTER TABLE `student_has_scholar_year`
 --
 ALTER TABLE `scholarYear`
   MODIFY `idScholarYear` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `report`
+--
+ALTER TABLE `report`
+  MODIFY `idReport` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `item`
+--
+ALTER TABLE `item`
+  MODIFY `idItem` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `agreement`
@@ -358,10 +448,10 @@ ALTER TABLE `company`
   MODIFY `idCompany` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
 
 --
--- AUTO_INCREMENT de la tabla `day`
+-- AUTO_INCREMENT de la tabla `comment`
 --
-ALTER TABLE `day`
-  MODIFY `idDay` int(11) NOT NULL AUTO_INCREMENT;
+ALTER TABLE `comment`
+  MODIFY `idComment` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `entry`
@@ -388,9 +478,9 @@ ALTER TABLE `user`
   MODIFY `idUser` int(11) NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT de la tabla `student_has_scholar_year`
+-- AUTO_INCREMENT de la tabla `student_scholar_year`
 --
-ALTER TABLE `student_has_scholar_year`
+ALTER TABLE `student_scholar_year`
   MODIFY `idStudentYear` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -406,10 +496,11 @@ ALTER TABLE `agreement`
   ADD CONSTRAINT `agreement_ibfk_3` FOREIGN KEY (`idLabor`) REFERENCES `user` (`idUser`) ON DELETE SET NULL;
 
 --
--- Filtros para la tabla `day`
+-- Filtros para la tabla `comment`
 --
-ALTER TABLE `day`
-  ADD CONSTRAINT `day_ibfk_1` FOREIGN KEY (`idEntry`) REFERENCES `entry` (`idEntry`) ON DELETE CASCADE;
+ALTER TABLE `comment`
+  ADD CONSTRAINT `comment_ibfk_1` FOREIGN KEY (`idEntry`) REFERENCES `entry` (`idEntry`) ON DELETE CASCADE,
+  ADD CONSTRAINT `comment_ibfk_2` FOREIGN KEY (`idModule`) REFERENCES `module` (`idModule`) ON DELETE SET NULL;
 
 --
 -- Filtros para la tabla `entry`
@@ -424,13 +515,34 @@ ALTER TABLE `module`
   ADD CONSTRAINT `module_ibfk_1` FOREIGN KEY (`idUnit`) REFERENCES `unit` (`idUnit`) ON DELETE CASCADE;
 
 --
--- Filtros para la tabla `student_has_scholar_year`
+-- Filtros para la tabla `student_scholar_year`
 --
-ALTER TABLE `student_has_scholar_year`
-  ADD CONSTRAINT `student_has_scholar_year_ibfk_1` FOREIGN KEY (`idStudent`) REFERENCES `user` (`idUser`) ON DELETE CASCADE,
-  ADD CONSTRAINT `student_has_scholar_year_ibfk_2` FOREIGN KEY (`idScholarYear`) REFERENCES `scholarYear` (`idScholarYear`) ON DELETE CASCADE,
-  ADD CONSTRAINT `student_has_scholar_year_ibfk_3` FOREIGN KEY (`idUnit`) REFERENCES `unit` (`idUnit`) ON DELETE CASCADE,
-  ADD CONSTRAINT `student_has_scholar_year_ibfk_4` FOREIGN KEY (`idAgreement`) REFERENCES `agreement` (`idAgreement`) ON DELETE CASCADE;
+ALTER TABLE `student_scholar_year`
+  ADD CONSTRAINT `student_scholar_year_ibfk_1` FOREIGN KEY (`idStudent`) REFERENCES `user` (`idUser`) ON DELETE CASCADE,
+  ADD CONSTRAINT `student_scholar_year_ibfk_2` FOREIGN KEY (`idScholarYear`) REFERENCES `scholarYear` (`idScholarYear`) ON DELETE CASCADE,
+  ADD CONSTRAINT `student_scholar_year_ibfk_3` FOREIGN KEY (`idUnit`) REFERENCES `unit` (`idUnit`) ON DELETE CASCADE,
+  ADD CONSTRAINT `student_scholar_year_ibfk_4` FOREIGN KEY (`idAgreement`) REFERENCES `agreement` (`idAgreement`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `report`
+--
+ALTER TABLE `report`
+  ADD CONSTRAINT `report_ibfk_1` FOREIGN KEY (`idAgreement`) REFERENCES `agreement` (`idAgreement`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `report_item`
+--
+ALTER TABLE `report_item`
+  ADD CONSTRAINT `report_item_ibfk_1` FOREIGN KEY (`idReport`) REFERENCES `report` (`idReport`) ON DELETE CASCADE,
+  ADD CONSTRAINT `report_item_ibfk_2` FOREIGN KEY (`idItem`) REFERENCES `item` (`idItem`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `report_module`
+--
+ALTER TABLE `report_module`
+  ADD CONSTRAINT `report_module_ibfk_1` FOREIGN KEY (`idReport`) REFERENCES `report` (`idReport`) ON DELETE CASCADE,
+  ADD CONSTRAINT `report_module_ibfk_2` FOREIGN KEY (`idModule`) REFERENCES `module` (`idModule`) ON DELETE CASCADE;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

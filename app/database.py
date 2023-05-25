@@ -1,4 +1,6 @@
 import mysql.connector
+import datetime
+from datetime import timedelta
 import xml.etree.ElementTree as ET
 from mysql.connector.errors import IntegrityError
 from fastapi.exceptions import HTTPException
@@ -6,75 +8,48 @@ from exceptions import *
 from models import *
 from utils import *
 
-########## COMPANY ##########
-
-# Insert company
-def insert_company_to_db(company: CompanyCreate):
-
-    # Get the connection and the cursor
-    conn, cursor = get_conn_and_cursor()
-
-    # Ejecutar la consulta INSERT
-    query = f"INSERT INTO {T_COMPANY} (name, address, latitude, longitude, phone) VALUES (%s, %s, %s, %s, %s)"
-    values = (company.name, company.address, company.latitude, company.longitude, company.phone)
-    cursor.execute(query, values)
-
-    # Obtener el ID de la nueva compañía
-    new_id = cursor.lastrowid
-
-    # Hacer commit de los cambios y cerrar la conexión
-    do_commit(conn, cursor)
-
-    # Devolver el ID de la nueva compañía
-    return {"message": f"Company with id {new_id} has been added."}
-
-# Delete company
-def delete_company_from_db(id_company: int):
-
-    # Get the connection and the cursor
-    conn, cursor = get_conn_and_cursor()
-    query = f"DELETE FROM {T_COMPANY} WHERE {ID_NAME_COMPANY} = {id_company}"
-    cursor.execute(query)
-
-    # Hacer commit de los cambios y cerrar la conexión
-    do_commit(conn, cursor)
-
-    return {"message": f"Company with id {id_company} has been deleted."}
-
-# Insert module
-def insert_module_to_db(module: ModuleCreate, profileUser: int):
-    # Get the connection and the cursor
-    conn, cursor = get_conn_and_cursor()
-
-    # Ejecutar la consulta INSERT
-    query = f"INSERT INTO {T_MODULE} (name, initials, hours, idUnit) VALUES (%s, %s, %s, %s)"
-    values = (module.name, module.initials, int(
-        module.hours), int(module.idUnit))
-    cursor.execute(query, values)
-
-    # Obtener el ID del nuevo módulo
-    new_id = cursor.lastrowid
-
-    # Hacer commit de los cambios y cerrar la conexión
-    do_commit(conn, cursor)
-
-    # Devolver el ID del nuevo módulo
-    return {"message": f"Module with id {new_id} has been added."}
-
-# Delete module
-def delete_module_from_db(id_module: int):
-    # Get the connection and the cursor
-    conn, cursor = get_conn_and_cursor()
-
-    query = f"DELETE FROM {T_MODULE} WHERE {ID_NAME_MODULE} = {id_module}"
-    cursor.execute(query)
-
-    # Hacer commit de los cambios y cerrar la conexión
-    do_commit(conn, cursor)
-
-    return {"message": f"Module with id {id_module} has been deleted."}
-
 ########## USER ##########
+
+# Get user
+def get_user_from_db(id_check: int, id_user: int, profile: str):
+
+    grant_access = False
+
+    # If its an admin or a teacher, always grant access
+    if profile in [ProfileEnum.ADMIN.value, ProfileEnum.TEACHER.value]:
+        grant_access = True
+
+    # Else if its a student, grant access if its his/her own profile
+    elif profile == ProfileEnum.STUDENT.value and id_check == id_user:
+        grant_access = True
+
+    # Else if its a laboral tutor, grant access if its his/her own profile or its his/her student
+    elif profile == ProfileEnum.LABOR.value and id_check == id_user or is_student_under_labor_tutor(id_check, id_user):
+        grant_access = True
+
+    # Return the user if has granted access
+    if grant_access:
+        return get_row(T_USER, ID_NAME_USER, id_user)
+
+    # Raise exception if has NOT granted access
+    else:
+        raise HTTPException(status_code=401, detail="Permission denied")
+
+# Get students
+def get_students_from_db():
+    return get_all_rows_condition(T_USER, "profile", ProfileEnum.STUDENT.value)
+
+# Get teachers
+def get_teachers_from_db():
+    return get_all_rows_condition(T_USER, "profile", ProfileEnum.TEACHER.value)
+
+# Get laborals
+def get_laborals_from_db():
+    return get_all_rows_condition(T_USER, "profile", ProfileEnum.LABOR.value)
+
+# Get disabled users
+def get_disabled_users_from_db():
+    return get_all_rows_condition(T_USER, "isActive", StatusEnum.DISABLED.value)
 
 # Get user role or profile
 def get_profile_from_user(id_user: int):
@@ -145,15 +120,10 @@ def insert_user_to_db(user: UserCreate, profile: ProfileEnum, status: StatusEnum
         # Execute query
         cursor.execute(query, values)
 
-        # Get the ID of the new row
-        id = cursor.lastrowid
-
         # Commit changes and close connections
         do_commit(conn, cursor)
 
-        inserted_user = get_object_from_db(T_USER, ID_NAME_USER, id)
-
-        return {"message": "User inserted successfully", "result": inserted_user}
+        return {"message": "User inserted successfully"}
 
     except IntegrityError as e:
         # Rollback changes and close connections
@@ -194,14 +164,50 @@ def insert_students_to_db_xml(students_xml: str):
 
 # Delete user
 def delete_user_from_db(id_user: int):
-    # Get the connection and the cursor
+    profile = get_profile_from_user(id_user)
+    if(profile == ProfileEnum.ADMIN.value):
+        raise HTTPException(status_code=403, detail="This user can not be deleted")
+    return delete_row(T_USER, ID_NAME_USER, id_user)
+
+# Update user
+def update_user_from_db(id_check: int, id_user: int, updated_fields: dict, profile: str):
+
+    grant_access = False
+    # Profile of the user that is going to be updated
+    profile_of_user_updating = get_profile_from_user(id_user)
+
+    # If is an Admin, always grant access
+    if profile == ProfileEnum.ADMIN.value:
+        grant_access = True
+
+    # Else if is a Student or Laboral tutor, only can update their own data
+    elif profile in [ProfileEnum.STUDENT.value, ProfileEnum.LABOR.value] and id_check == id_user:
+        grant_access = True
+
+    # Else if is an Teacher, grant access if the user that is going to be updated is not an admin or teacher
+    elif profile == ProfileEnum.TEACHER.value and id_check == id_user or profile_of_user_updating not in [ProfileEnum.ADMIN.value, ProfileEnum.TEACHER.value]:
+        grant_access = True
+
+    # Update the user if has granted access
+    if grant_access:
+        return update_table(T_USER, ID_NAME_USER, id_user, updated_fields)
+    # Raise exception if has NOT granted access
+    else:
+        raise HTTPException(status_code=401, detail="Permission denied")
+
+# Update user status
+def update_user_status_from_db(id_user: int, new_status: int):
+
+    # Update the user status
     conn, cursor = get_conn_and_cursor()
-    # Set and execute the query
-    query = f"DELETE FROM {T_USER} WHERE {ID_NAME_USER} = {id_user}"
-    cursor.execute(query)
-    # Do commit and close connections
+    query = f"UPDATE {T_USER} SET isActive = %s WHERE {ID_NAME_USER} = %s"
+    values = (new_status, id_user)
+    cursor.execute(query, values)
+
+    # Commit the changes and close connections
     do_commit(conn, cursor)
-    return {"message": f"User with id {id_user} has been deleted."}
+
+    return {"message": "User status changed successfully"}
 
 # Get entries
 def get_entries_from_user(id_student: int):
@@ -233,7 +239,69 @@ def get_entries_from_user(id_student: int):
     close_conn_and_cursor(conn, cursor)
     return rows
 
+########## COMPANY ##########
+
+# Get company
+def get_company_from_db(id_check: int, id_company: int, profile: str):
+
+    grant_access = False
+
+    # If its a teacher or admin, grant access
+    if profile in [ProfileEnum.TEACHER.value, ProfileEnum.ADMIN.value]:
+        grant_access = True
+
+    # If its an student, check if its his/her company
+    elif profile == ProfileEnum.STUDENT.value and is_student_company(id_check, id_company):
+        grant_access = True
+
+    # Return the company if has granted access
+    if grant_access:
+        return get_row(T_COMPANY, ID_NAME_COMPANY, id_company)
+    # Raise exception if has NOT granted access
+    else:
+        raise HTTPException(status_code=401, detail="Permission denied")
+
+# Get all companies
+def get_all_companies_from_db():
+    return get_all_rows(T_COMPANY)
+
+# Insert company
+def insert_company_to_db(company: CompanyCreate):
+
+    # Get the connection and the cursor
+    conn, cursor = get_conn_and_cursor()
+
+    # Ejecutar la consulta INSERT
+    query = f"INSERT INTO {T_COMPANY} (name, address, latitude, longitude, phone) VALUES (%s, %s, %s, %s, %s)"
+    values = (company.name, company.address, company.latitude, company.longitude, company.phone)
+    cursor.execute(query, values)
+
+    # Obtener el ID de la nueva compañía
+    new_id = cursor.lastrowid
+
+    # Hacer commit de los cambios y cerrar la conexión
+    do_commit(conn, cursor)
+
+    # Devolver el ID de la nueva compañía
+    return {"message": f"Company with id {new_id} has been added."}
+
+# Delete company
+def delete_company_from_db(id_company: int):
+    return delete_row(T_COMPANY, ID_NAME_COMPANY, id_company)
+
+# Update company
+def update_company_from_db(id_company: int, updated_fields: dict):
+    return update_table(T_COMPANY, ID_NAME_COMPANY, id_company, updated_fields)
+
 ########## UNIT ##########
+
+# Get unit
+def get_unit_from_db(id_unit: int):
+    return get_row(T_UNIT, ID_NAME_UNIT, id_unit)
+
+# Get all unit
+def get_all_units_from_db():
+    return get_all_rows(T_UNIT)
 
 # Insert unit
 def insert_unit_to_db(unit: UnitCreate):
@@ -256,16 +324,140 @@ def insert_unit_to_db(unit: UnitCreate):
 
 # Delete unit
 def delete_unit_from_db(id_unit: int):
+    return delete_row(T_UNIT, ID_NAME_UNIT, id_unit)
+
+# Update unit
+def update_unit_from_db(id_unit: int, updated_fields: dict):
+     return update_table(T_UNIT, ID_NAME_UNIT, id_unit, updated_fields)
+
+########## MODULE ##########
+
+# Get module
+def get_module_from_db(id_module: int):
+    return get_row(T_MODULE, ID_NAME_MODULE, id_module)
+
+# Get all modules
+
+# Get modules from student
+def get_modules_of_student_from_db(id_student: int):
+    # I have to get the current scholar year id,
+    # the student id and unit where idAgreement is not null in the table student_scholar_year
+    # like this, i will get only a row. Of this row, take the unit
+    return 
+
+# Insert module
+def insert_module_to_db(module: ModuleCreate):
     # Get the connection and the cursor
     conn, cursor = get_conn_and_cursor()
 
-    query = f"DELETE FROM {T_UNIT} WHERE {ID_NAME_UNIT} = {id_unit}"
-    cursor.execute(query)
-
+    # Ejecutar la consulta INSERT
+    query = f"INSERT INTO {T_MODULE} (name, initials, hours, idUnit) VALUES (%s, %s, %s, %s)"
+    values = (module.name, module.initials, int(module.hours), int(module.idUnit))
+    cursor.execute(query, values)
+    
     # Hacer commit de los cambios y cerrar la conexión
     do_commit(conn, cursor)
 
-    return {"message": f"Unit with id {id_unit} has been deleted."}
+    # Devolver el ID del nuevo módulo
+    return {"message": "Module inserted successfully"}
+
+# Delete module
+def delete_module_from_db(id_module: int):
+    return delete_row(T_MODULE, ID_NAME_MODULE, id_module)
+
+# Update module
+def update_module_from_db(id_module: int, updated_fields: dict):
+    return update_table(T_MODULE, ID_NAME_MODULE, id_module, updated_fields)
+
+########## ENTRY ##########
+
+# Get entry
+def get_entry_from_db(id_check: int, id_entry: int, profile: str):
+    
+    grant_access = False
+
+    # If is an Admin or Teacher, always grant access to the entry
+    if profile in [ProfileEnum.ADMIN.value, ProfileEnum.TEACHER.value]:
+        grant_access = True
+
+    # Else if is a Student, only grant access if its his/her entry
+    elif profile == ProfileEnum.STUDENT.value:
+        return
+
+    if grant_access:
+        return get_row(T_ENTRY, ID_NAME_ENTRY, id_entry)
+    else:
+        raise HTTPException(status_code=401, detail="Permission denied")
+    
+# Get entries
+def get_all_entries_from_student(id_student: int, profile):
+
+    grant_access = False
+
+    # If is an Admin or Teacher, always grant access to the student entries
+    if profile in [ProfileEnum.ADMIN.value, ProfileEnum.TEACHER.value]:
+        grant_access = True
+    
+
+    if grant_access:
+        # TIENE QUE DEVOLVER LAS ENTRADAS DE UN USUARIO SOLO, Y DE EL ÚLTIMO CURSO ESCOLAR
+        return
+    else:
+        raise HTTPException(status_code=401, detail="Permission denied")
+
+# Insert entry
+def insert_entry_to_db(entry: EntryCreate):
+
+    # Get the current date
+    today = datetime.today().date()
+
+    # Calculate the date range
+    start_date = today - timedelta(days=today.weekday())
+    end_date = start_date + timedelta(days=6)
+
+    # Get the connection and the cursor
+    conn, cursor = get_conn_and_cursor()
+
+    # Insert the entry
+    query = f"INSERT INTO {T_ENTRY} (startWeek, endWeek, idAgreement) VALUES (%s, %s, %s)"
+    values = (start_date, end_date, int(entry.idAgreement))
+    cursor.execute(query, values)
+    conn.commit()
+
+    # Get the id of the inserted entry
+    new_entry_id = cursor.lastrowid
+
+    agreement = get_row(T_AGREEMENT, ID_NAME_AGREEMENT, entry.idAgreement)
+
+    agreement_type = agreement.get('agreementType')
+    fct_start_at = agreement.get('fctStartAt', None)
+    fct_end_at = agreement.get('fctEndAt', None)
+
+    # Now I have to add 5 rows to the comments table,
+    # if the user agreement is FCT,
+    # or if is FCT+DUAL and the current date is between fctStartDate and fctEndDate
+    # The comment table has idComment as primary and idEntry as foreign, the id of the entry inserted
+
+
+    if agreement_type == AgreementTypeEnum.FCT.value or (agreement_type == AgreementTypeEnum.FCT_DUAL.value and is_in_fct_date(fct_start_at, fct_end_at, today)):
+        # Add five comments (Days of the week)
+        for _ in range(5):
+            # Insert comment into the comments table
+            query = f"INSERT INTO {T_COMMENT} (text, hours, observations, idEntry) VALUES (%s, %s, %s, %s)"
+            values = ("", 70000, None, new_entry_id)
+            cursor.execute(query, values)
+    else:
+        # Insertar el MODULO
+        modules = get_modules_of_student_from_db()
+        return
+    
+     # Commit after loop
+    do_commit(conn, cursor)
+
+    return {"message": "Entry inserted successfully"}
+
+
+# Delete entry
 
 ########## DAY ##########
 
@@ -284,45 +476,7 @@ def get_day_from_db(id_day: int):
             row[column[0]] = result[i]
     return row
 
-# Get user #### TENEMOS YA UN GET GENERAL, VER SI ESTE HACE ALGUNA DIFERENCIA
-def get_user_from_db(id_user: int):
-
-    try:
-        # Get the connection and the cursor
-        conn, cursor = get_conn_and_cursor()
-
-        query = f"SELECT * FROM {T_USER} WHERE {ID_NAME_USER} = {id_user}"
-
-        cursor.execute(query)
-
-        # Fetch the user from the result set
-        result = cursor.fetchone()
-        if result is None:
-            raise GetUserException(f"User with id {id_user} not found")
-
-        # Create a User object from the database row
-        user = User(
-            idUser=result[0],
-            name=result[1],
-            surname=result[2],
-            email=result[3],
-            password=result[4],
-            picture=result[5],
-            linkedin=result[6],
-            github=result[7],
-            twitter=result[8],
-            profile=ProfileEnum(result[9])
-        )
-
-        return user
-
-    except Exception as e:
-        # Rollback changes and close connections
-        rollback(conn, cursor)
-
-        raise Exception(f"Error retrieving user: {str(e)}")
-
-
+# Login
 def login_from_db(auth: LoginCreate):
     conn, cursor = get_conn_and_cursor()
     # Get the entries
@@ -364,7 +518,8 @@ def drop_db():
 
 ########## General SELECT for all tables  ##########
 
-def get_object_from_db(table_name: str, id_name: int, id_value: int):
+# Get row
+def get_row(table_name: str, id_name: int, id_value: int):
 
     try:
         # Get the connection and the cursor
@@ -405,7 +560,8 @@ def get_object_from_db(table_name: str, id_name: int, id_value: int):
         cursor.close()
         conn.close()
 
-def get_all_rows_from_table(table_name: str):
+# Get all rows
+def get_all_rows(table_name: str):
     try:
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
@@ -434,14 +590,49 @@ def get_all_rows_from_table(table_name: str):
         # Rollback changes and close connections
         conn.rollback()
         raise Exception(f"Error retrieving rows from the table: {str(e)}")
+    
+    finally:
+        cursor.close()
+        conn.close()
 
+# Get all rows with condition
+def get_all_rows_condition(table_name: str, condition: str, value):
+    try:
+        # Get the connection and the cursor
+        conn, cursor = get_conn_and_cursor()
+
+        # Get the table's column names
+        select_columns_query = f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'"
+        cursor.execute(select_columns_query)
+        column_names = [col[0] for col in cursor.fetchall()]
+
+        # Query to get all rows
+        select_all_rows_query = f"SELECT * FROM {table_name} WHERE {condition} = {value}"
+
+        # Execute query to retrieve all rows
+        cursor.execute(select_all_rows_query)
+        rows = cursor.fetchall()
+
+        # Format the rows with column names
+        formatted_rows = []
+        for row in rows:
+            formatted_row = {column_names[i]: value for i, value in enumerate(row)}
+            formatted_rows.append(formatted_row)
+
+        return formatted_rows
+
+    except Exception as e:
+        # Rollback changes and close connections
+        conn.rollback()
+        raise Exception(f"Error retrieving rows from the table: {str(e)}")
+    
     finally:
         cursor.close()
         conn.close()
 
 ########## General UPDATE for all tables  ##########
 
-def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields: dict):
+def update_table(table_name: str, id_name: str, id_value: int, updated_fields: dict):
 
     try:
         # Get the connection and the cursor
@@ -464,7 +655,7 @@ def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields
         do_commit(conn, cursor)
 
         # Get the updated object
-        formatted_updated_obj = get_object_from_db(table_name, id_name, id_value)
+        formatted_updated_obj = get_row(table_name, id_name, id_value)
 
         return {"message": f"{table_name.capitalize()} updated successfully", "result": formatted_updated_obj}
 
@@ -476,14 +667,14 @@ def update_table_db(table_name: str, id_name: str, id_value: int, updated_fields
 ########## General DELETE for all tables  ##########
 
 # CAMBIAR EL MENSAJE SI NO BORRA UN OBJETO PORQUE NO LO ENCUENTRA
-def delete_object_from_db(table_name: str, id_name: str, id_value: int):
+def delete_row(table_name: str, id_name: str, id_value: int):
 
     try:
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
         # Get the object that is going to be deleted
-        formatted_deleted_obj = get_object_from_db(table_name, id_name, id_value)
+        formatted_deleted_obj = get_row(table_name, id_name, id_value)
 
         # Delete object
         delete_query = f"DELETE FROM {table_name} WHERE {id_name} = {id_value}"
@@ -510,13 +701,35 @@ def delete_object_from_db(table_name: str, id_name: str, id_value: int):
 
 ########## AGREEMENT ##########
 
-def is_user_this_role(id_user: int, role: ProfileEnum):
-    if get_profile_from_user(id_user) == role.value:
-        return True
+# Get agreement
+def get_agreement_from_db(id_agreement: int, profile: str):
+
+    grant_access = False
+
+    # If its an Admin or Teacher, grant access
+    if profile in [ProfileEnum.ADMIN.value, ProfileEnum.TEACHER.value]:
+        grant_access = True
+
+    # Else if its a Student and is requesting for his own agreement, grant access
+    elif profile == ProfileEnum.STUDENT.value and is_student_agreement():
+        grant_access = True
+
+    # Else if its a Laboral tutor and is requesting for the agreement of their students, grant access
+    elif profile == ProfileEnum.LABOR.value and is_agreement_from_his_students():
+        grant_access = True
+    
+    # Return the agreement if has granted access
+    if grant_access:
+        return get_row(T_AGREEMENT, ID_NAME_AGREEMENT, id_agreement)
+    # Raise exception if has NOT granted access
     else:
-        return {"error": f"The user with the id {id_user} is not a {role}"}
+        raise HTTPException(status_code=401, detail="Permission denied")
 
+# Get all agreements
+def get_all_agreements_from_db():
+    return get_all_rows(T_AGREEMENT)
 
+# Insert agreement
 def insert_agreement_to_db(agreement: AgreementCreate):
 
     try:
@@ -527,16 +740,26 @@ def insert_agreement_to_db(agreement: AgreementCreate):
         # Check if the foreign keys with the roles are valid
         if get_profile_from_user(agreement.idTeacher) != ProfileEnum.TEACHER:
             raise HTTPException(status_code=400, detail="Role for the provided idTeacher is wrong")
+        
         if get_profile_from_user(agreement.idLabor) != ProfileEnum.LABOR:
             raise HTTPException(status_code=400, detail="Role for the provided idLabor is wrong")
 
+        if agreement.agreementType == AgreementTypeEnum.DUAL:
+            agreement.fctStartAt = None
+            agreement.fctEndAt = None
+        elif agreement.agreementType == AgreementTypeEnum.FCT:
+            agreement.dualStartAt = None
+            agreement.dualEndAt = None
+
         # Query
-        query = f"INSERT INTO {T_AGREEMENT} (startAt, endAt, agreementType, idCompany, idTeacher, idLabor) VALUES (%s, %s, %s, %s, %s, %s)"
+        query = f"INSERT INTO {T_AGREEMENT} (dualStartAt, dualEndAt, fctStartAt, fctEndAt, agreementType, idCompany, idTeacher, idLabor) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
 
         # Values for the query
         values = (
-            agreement.startAt,
-            agreement.endAt,
+            agreement.dualStartAt,
+            agreement.dualEndAt,
+            agreement.fctStartAt,
+            agreement.fctEndAt,
             agreement.agreementType,
             agreement.idCompany,
             agreement.idTeacher,
@@ -547,12 +770,12 @@ def insert_agreement_to_db(agreement: AgreementCreate):
         cursor.execute(query, values)
 
         # Get the ID of the new row
-        id = cursor.lastrowid
+        new_id = cursor.lastrowid
 
         # Commit changes and close connections
         do_commit(conn, cursor)
 
-        inserted_agreement = get_object_from_db(T_AGREEMENT, ID_NAME_AGREEMENT, id)
+        inserted_agreement = get_row(T_AGREEMENT, ID_NAME_AGREEMENT, new_id)
 
         return {"message": "Agreement inserted successfully", "result": inserted_agreement}
 
@@ -560,3 +783,80 @@ def insert_agreement_to_db(agreement: AgreementCreate):
         # Rollback changes and close connections
         rollback(conn, cursor)
         return {"error": str(e)}
+
+# Delete agreement
+def delete_agreement_from_db(id_agreement: int):
+    return delete_row(T_AGREEMENT, ID_NAME_AGREEMENT, id_agreement)
+
+# Update agreement
+def update_agreement_from_db(id_agreement: int, updated_fields: dict):
+    return update_table(T_AGREEMENT, ID_NAME_AGREEMENT, id_agreement, updated_fields)
+
+########## SCHOLAR YEAR ##########
+
+# Get scholar year
+def get_scholar_year_from_db(id_scholar_year: int):
+    return
+
+# Insert scholar year
+def insert_scholar_year_to_db(scholar_year: ScholarYearCreate):
+
+    # Check that date format is valid
+    if is_date_format_valid([scholar_year.startDate, scholar_year.endDate], DATE_FORMAT) == False:
+        raise HTTPException(status_code=400, detail="Incorrect date format")
+    
+    # Check that start date is smaller than end date
+    if scholar_year.startDate >= scholar_year.endDate:
+        raise HTTPException(status_code=400, detail="Start date must be before end date")
+    
+    # Set the year between two dates as YYYY-YYYY format, 2022-2023
+    year = get_year_from_dates(scholar_year.startDate, scholar_year.endDate)
+
+    # Get the connection and the cursor
+    conn, cursor = get_conn_and_cursor()
+
+    # Execute the insert query and commit
+    query = f"INSERT INTO {T_SCHOLAR_YEAR} (startDate, endDate, year, aptitudesPonderation, subjectsPonderation, holidays) VALUES (%s, %s, %s, %s, %s, %s)"
+    values = (scholar_year.startDate, scholar_year.endDate, year, scholar_year.aptitudesPonderation, scholar_year.subjectsPonderation, scholar_year.holidays)
+    cursor.execute(query, values)
+    new_id = cursor.lastrowid
+    do_commit(conn, cursor)
+
+    # Get the row inserted
+    inserted_scholar_year = get_row(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, new_id)
+
+    # Return the inserted row
+    return {"message": f"Scholar year inserted successfully", "result": inserted_scholar_year}
+
+# Update grade duration from last scholar year
+def update_grade_duration_from_db(start_date: str, end_date: str):
+
+    # Check that date format is valid
+    if is_date_format_valid([start_date, end_date], DATE_FORMAT) == False:
+        raise HTTPException(status_code=400, detail="Incorrect date format")
+    
+    # Check that start date is smaller than end date
+    if start_date and end_date and start_date >= end_date:
+        raise HTTPException(status_code=400, detail="Start date must be before end date")
+    
+    year = get_year_from_dates(start_date, end_date)
+    grade_duration = {"startDate": start_date, "endDate": end_date, "year": year}
+    max_id = get_max_id_from_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR)
+    return update_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, max_id, grade_duration)
+
+# Update holidays from last scholar year
+def update_holidays_from_db(holidays: dict):
+    max_id = get_max_id_from_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR)
+    return update_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, max_id, holidays)
+
+# Update ponderation from last scholar year
+def update_ponderation_from_db(aptitudes: int, subjects: int):
+
+    # If ponderation does not equal 100, raise HTTPException
+    if aptitudes + subjects != 100:
+        raise HTTPException(status_code=400, detail="Aptitudes and Subjects must sum a total of 100")
+    
+    # If ponderation equals 100, update it
+    ponderation = {"aptitudesPonderation": aptitudes, "subjectsPonderation": subjects}
+    max_id = get_max_id_from_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR)
+    return update_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, max_id, ponderation)

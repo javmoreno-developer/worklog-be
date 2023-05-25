@@ -3,7 +3,8 @@ from models import *
 from constants import *
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from fastapi.responses import FileResponse
+from fastapi.exceptions import HTTPException
+from mysql.connector.errors import Error
 from datetime import datetime
 import secrets
 import smtplib
@@ -34,7 +35,7 @@ def get_update_query_and_values(table_name: str, id_name: str, id_value, updated
     query = f"UPDATE {table_name} SET"
     values = []
 
-    # Append to the query values that are not none, excluding ID and profile
+    # Append to the query values that are not none, excluding id_name, profile, and isActive
     updated_fields.pop(id_name, None)
     updated_fields.pop("profile", None)
     updated_fields.pop("isActive", None)
@@ -58,7 +59,6 @@ def send_email(emailReceiver: str):
     if(len(user) != 0 ):
         exist = True
 
-    
     # Configura los detalles del correo electrónico
     if(exist):
         sender_email = "javmoreno766@gmail.com"
@@ -182,6 +182,7 @@ def extract_student_data_from_xml(student: str, position: int):
 
 ########## CHECKS ##########
 
+# Is this student under certain laboral tutor
 def is_student_under_labor_tutor(id_laboral_tutor: int, id_student: int):
 
     # CAMINO PARA LLEGAR A SI ES TUTOR O NO DE ESE ALUMNO. 
@@ -192,8 +193,9 @@ def is_student_under_labor_tutor(id_laboral_tutor: int, id_student: int):
 
     conn, cursor = get_conn_and_cursor()
 
-    # Try to get the agreement by the id of the laboral tutor and the id of the student
-    query = f"SELECT * FROM {T_AGREEMENT} WHERE {ID_NAME_LABOR} = {id_laboral_tutor} AND {ID_NAME_STUDENT} = {id_student}"
+    # Try to get the agreement by the id of the laboral tutor. Then get the idAgreement and look into
+    # student_scholar_year where idAgreement equals idAgreement and idStudent equals id_student
+    query = f"SELECT * FROM {T_AGREEMENT} WHERE {ID_NAME_LABOR} = {id_laboral_tutor}"
     cursor.execute(query)
     result = cursor.fetchone()
     close_conn_and_cursor(conn, cursor)
@@ -203,7 +205,8 @@ def is_student_under_labor_tutor(id_laboral_tutor: int, id_student: int):
         return True
     else:
         return False
-    
+
+# Is this student under certain teacher  
 def is_student_under_teacher_tutor(id_teacher_tutor: int, id_student: int):
 
     # CAMINO PARA LLEGAR A SI ES TUTOR O NO DE ESE ALUMNO. 
@@ -226,6 +229,7 @@ def is_student_under_teacher_tutor(id_teacher_tutor: int, id_student: int):
     else:
         return False
 
+# Is this student from this company
 def is_student_company(id_student: int, id_company: int):
     
     # Get the connection
@@ -243,6 +247,7 @@ def is_student_company(id_student: int, id_company: int):
     else:
         return False
 
+# Is this list of dates valid
 def is_date_format_valid(date_list, date_format):
     for date_str in date_list:
         try:
@@ -251,8 +256,34 @@ def is_date_format_valid(date_list, date_format):
             return False
     return True
 
-
-def get_year_from_dates(start_date, end_date):
+# Get the year from two dates: Input 2022-09-15, 2023-06-20. Output: 2022-2023
+def get_year_from_dates(start_date: str, end_date: str):
     start_year = datetime.strptime(start_date, '%Y-%m-%d').year
     end_year = datetime.strptime(end_date, '%Y-%m-%d').year
     return f"{start_year}-{end_year}"
+
+# Get the max ID of a table
+def get_max_id_from_table(table_name: str, id_name: str):
+    try:
+        conn, cursor = get_conn_and_cursor()
+        query = f"SELECT MAX({id_name}) FROM {table_name}"
+        cursor.execute(query)
+        result = cursor.fetchone()
+        if result is not None:
+            max_id = result[0]
+        else:
+            raise HTTPException(status_code=404, detail="No records found")
+        close_conn_and_cursor(conn, cursor)
+        return max_id
+    except Error as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+#
+def is_in_fct_date(id_agreement, date):
+    # Implement logic to check if the given date falls within the FCT date range
+    # Return True if it is within the range, False otherwise
+    pass
+
+# Get current scholar year
+def get_current_scholar_year_from_db():
+    pass

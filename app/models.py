@@ -3,7 +3,42 @@ from typing import Optional
 from pydantic import BaseModel
 from enum import Enum
 
-## Company
+########## USER ##########
+
+class StatusEnum(int, Enum):
+    DISABLED = 0,
+    ENABLED = 1
+
+class ProfileEnum(str, Enum):
+    ADMIN = '1'
+    STUDENT = '2'
+    TEACHER = '3'
+    LABOR = '4'
+
+class UserBase(BaseModel):
+    name: str
+    surname: str
+    email: str
+    password: str
+    picture: Optional[str]
+    linkedin: Optional[str]
+    github: Optional[str]
+    twitter: Optional[str]
+    profile: Optional[ProfileEnum]
+    isActive: Optional[StatusEnum]
+
+class UserCreate(UserBase):
+    pass
+
+class User(UserBase):
+    idUser: int
+    
+    class Config:
+        orm_mode = True
+
+
+########## COMPANY ##########
+
 class CompanyBase(BaseModel):
     name: str
     address: Optional[str] = None
@@ -21,7 +56,8 @@ class Company(CompanyBase):
         orm_mode = True
 
 
-## Module
+########## MODULE ##########
+
 class ModuleBase(BaseModel):
     name: str
     initials: str
@@ -37,51 +73,18 @@ class Module(ModuleBase):
     class Config:
         orm_mode = True
 
-## User
+########## UNIT ##########
 
-class StatusEnum(int, Enum):
-    DISABLED = 0,
-    ENABLED = 1
-
-class ProfileEnum(str, Enum):
-    ADMIN = '1'
-    STUDENT = '2'
-    TEACHER = '3'
-    LABOR = '4'
-
-class UserBase(BaseModel):
-    name: str
-    surname: str
-    email: str
-    password: str
-    picture: str
-    linkedin: str
-    github: str
-    twitter: str
-    profile: ProfileEnum
-    isActive: StatusEnum
-
-class UserCreate(UserBase):
-    pass
-
-class User(UserBase):
-    idUser: int
-    
-    class Config:
-        orm_mode = True
-
-## Unit
 class UnitEnum(str, Enum):
     MORNING = 'morning'
     EVENING = "evening"
     
-
 class UnitBase(BaseModel):
     level: int
     name: str
     initials: str
-    charUnit: Optional[str]=None
-    unitType: Optional[UnitEnum]=None
+    charUnit: Optional[str]= None
+    unitType: UnitEnum
 
 class UnitCreate(UnitBase):
     pass
@@ -92,22 +95,41 @@ class Unit(UnitBase):
     class Config:
         orm_mode = True
 
-## Day
+########## ENTRY ##########
 
-class DayBase(BaseModel):
-    text: str
-    hours: str
-    observations: Optional[str]=None
-    idEntry: int
+class EntryBase(BaseModel):
+    startWeek: str
+    endWeek: str 
+    idAgreement: int
 
-class DayCreate(DayBase):
+class EntryCreate(EntryBase):
     pass
 
-class Day(DayBase):
-    idDay: int
+class Entry(EntryBase):
+    idEntry: int
     
     class Config:
         orm_mode = True
+
+########## COMMENT ##########
+
+class CommentBase(BaseModel):
+    text: str
+    hours: Optional[str] = None
+    observations: Optional[str]=None
+    idEntry: int
+    idModule: Optional[int] = None
+
+class CommentCreate(CommentBase):
+    pass
+
+class Comment(CommentBase):
+    idComment: int
+    
+    class Config:
+        orm_mode = True
+
+########## EMAIL ##########
 
 class EmailBase(BaseModel):
     email: str
@@ -119,6 +141,8 @@ class Email(EmailBase):
     
     class Config:
         orm_mode = True
+
+########## LOGIN ##########
 
 class LoginBase(BaseModel):
     email: str
@@ -132,16 +156,18 @@ class Login(LoginBase):
     class Config:
         orm_mode = True
 
-# Agreement
+########## AGREEMENT ##########
 
 class AgreementTypeEnum(str, Enum):
     FCT = 'fct',
     DUAL = 'dual'
-    FCT_DUAL = 'both'
+    FCT_DUAL = 'fct+dual'
 
 class AgreementBase(BaseModel):
-    startAt: str
-    endAt: str
+    dualStartAt: str
+    dualEndAt: str
+    fctStartAt: str
+    fctEndAt: str
     agreementType: AgreementTypeEnum
     idCompany: int
     idTeacher: int
@@ -152,6 +178,25 @@ class AgreementCreate(AgreementBase):
 
 class Agreement(AgreementBase):
     idAgreement: int
+
+    class Config:
+        orm_mode = True
+
+########## SCHOLAR YEAR ##########
+
+class ScholarYearBase(BaseModel):
+    startDate: str
+    endDate: str
+    year: Optional[int]
+    aptitudesPonderation: Optional[int]
+    subjectsPonderation: Optional[int]
+    holidays: Optional[str]
+
+class ScholarYearCreate(ScholarYearBase):
+    pass
+
+class ScholarYear(ScholarYearBase):
+    idScholarYear: int
 
     class Config:
         orm_mode = True
