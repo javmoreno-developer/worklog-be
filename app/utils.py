@@ -144,7 +144,6 @@ def check_user_by_email(email: str):
     return row
 
 # XML
-
 def extract_student_data_from_xml(student: str, position: int):
     # Check that the child is a student tag
     if student.tag.lower() != 'student':
@@ -180,73 +179,6 @@ def extract_student_data_from_xml(student: str, position: int):
 
     return UserCreate(name=name, surname=surname, email=email, password=password, picture=picture, linkedin=linkedin, github=github, twitter=twitter, profile=profile, isActive=StatusEnum.DISABLED)
 
-########## CHECKS ##########
-
-# Is this student under certain laboral tutor
-def is_student_under_labor_tutor(id_laboral_tutor: int, id_student: int):
-
-    # CAMINO PARA LLEGAR A SI ES TUTOR O NO DE ESE ALUMNO. 
-    # TENEMOS UNA TABLA AGREEMENT, CON EL ID DEL LABORAL Y EL ID DEL ESTUDIANTE. 
-    # SI HAY OCURRENCIAS, ES SU ALUMNO.
-    # LA COSA ES, QUE ESE ALUMNO PUEDE QUE HAYA ESTADO DOS VECES EN UN CONVENIO CON ESE MISMO LABORAL,
-    # ASÍ QUE HAY QUE COMPROBAR ALGO MÁS
-
-    conn, cursor = get_conn_and_cursor()
-
-    # Try to get the agreement by the id of the laboral tutor. Then get the idAgreement and look into
-    # student_scholar_year where idAgreement equals idAgreement and idStudent equals id_student
-    query = f"SELECT * FROM {T_AGREEMENT} WHERE {ID_NAME_LABOR} = {id_laboral_tutor}"
-    cursor.execute(query)
-    result = cursor.fetchone()
-    close_conn_and_cursor(conn, cursor)
-
-    # If there is a result, this laboral tutor is the tutor of this student, else, he/she is not
-    if result:
-        return True
-    else:
-        return False
-
-# Is this student under certain teacher  
-def is_student_under_teacher_tutor(id_teacher_tutor: int, id_student: int):
-
-    # CAMINO PARA LLEGAR A SI ES TUTOR O NO DE ESE ALUMNO. 
-    # TENEMOS UNA TABLA AGREEMENT, CON EL ID DEL DOCENTE Y EL ID DEL ESTUDIANTE. 
-    # SI HAY OCURRENCIAS, ES SU ALUMNO.
-    # LA COSA ES, QUE ESE ALUMNO PUEDE QUE HAYA ESTADO DOS VECES EN UN CONVENIO CON ESE MISMO PROFESOR,
-    # ASÍ QUE HAY QUE COMPROBAR ALGO MÁS
-
-    conn, cursor = get_conn_and_cursor()
-
-    # Try to get the agreement by the id of the teacher and the id of the student
-    query = f"SELECT * FROM {T_AGREEMENT} WHERE {ID_NAME_TEACHER} = {id_teacher_tutor} AND {ID_NAME_STUDENT} = {id_student}"
-    cursor.execute(query)
-    result = cursor.fetcone()
-    close_conn_and_cursor(conn, cursor)
-
-    # If there is a result, this teacher tutor is the tutor of this student, else, he/she is not
-    if result:
-        return True
-    else:
-        return False
-
-# Is this student from this company
-def is_student_company(id_student: int, id_company: int):
-    
-    # Get the connection
-    conn, cursor = get_conn_and_cursor()
-
-    # Try to get the agreement by the id of the student and the id of the company
-    query = f"SELECT * FROM {T_AGREEMENT} WHERE {ID_NAME_STUDENT} = {id_student} AND {ID_NAME_COMPANY} = {id_company}"
-    cursor.execute(query)
-    result = cursor.fetchone()
-    close_conn_and_cursor(conn, cursor)
-
-    # If there is a result, this company is where the student is at, else, this is not
-    if result:
-        return True
-    else:
-        return False
-
 # Is this list of dates valid
 def is_date_format_valid(date_list, date_format):
     for date_str in date_list:
@@ -256,34 +188,32 @@ def is_date_format_valid(date_list, date_format):
             return False
     return True
 
+# Is date of fct + dual agreement valid
+def is_fct_dual_dates_valid(fct_start, fct_end, dual_start, dual_end):
+
+    if fct_start > fct_end:
+        raise  HTTPException(status_code=400, detail="FCT start date must be before FCT end date")
+
+    # Check if dual_start_at is lower than dual_end_at
+    if dual_start > dual_end:
+        raise  HTTPException(status_code=400, detail="Dual start date must be before Dual end date")
+
+    # Check if dual_end_at is lower than fct_start_at
+    if dual_end > fct_start:
+        raise  HTTPException(status_code=400, detail="Dual end date must be before FCT start date")
+    
+    return True
+
 # Get the year from two dates: Input 2022-09-15, 2023-06-20. Output: 2022-2023
 def get_year_from_dates(start_date: str, end_date: str):
     start_year = datetime.strptime(start_date, '%Y-%m-%d').year
     end_year = datetime.strptime(end_date, '%Y-%m-%d').year
     return f"{start_year}-{end_year}"
 
-# Get the max ID of a table
-def get_max_id_from_table(table_name: str, id_name: str):
-    try:
-        conn, cursor = get_conn_and_cursor()
-        query = f"SELECT MAX({id_name}) FROM {table_name}"
-        cursor.execute(query)
-        result = cursor.fetchone()
-        if result is not None:
-            max_id = result[0]
-        else:
-            raise HTTPException(status_code=404, detail="No records found")
-        close_conn_and_cursor(conn, cursor)
-        return max_id
-    except Error as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# Is a date between two dates
+def is_date_between_two_dates(start_date, end_date, date):
+    if start_date <= date <= end_date:
+        return True
+    else:
+        return False
 
-#
-def is_in_fct_date(id_agreement, date):
-    # Implement logic to check if the given date falls within the FCT date range
-    # Return True if it is within the range, False otherwise
-    pass
-
-# Get current scholar year
-def get_current_scholar_year_from_db():
-    pass

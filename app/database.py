@@ -51,6 +51,21 @@ def get_laborals_from_db():
 def get_disabled_users_from_db():
     return get_all_rows_condition(T_USER, "isActive", StatusEnum.DISABLED.value)
 
+# Get disabled users
+def get_students_with_no_agreement_from_db():
+    conn, cursor = get_conn_and_cursor()
+    id_current_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+    query = f"SELECT {ID_NAME_STUDENT} FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_SCHOLAR_YEAR} = {id_current_year} AND {ID_NAME_AGREEMENT} IS NULL"
+    cursor.execute(query)
+    id_students = cursor.fetchall()
+    students = []
+    formatted_id_students = [student[0] for student in id_students]
+    for id_student in formatted_id_students:
+        students.append(get_row(T_USER, ID_NAME_USER, id_student))
+    close_conn_and_cursor(conn, cursor)
+    return students
+
+
 # Get user role or profile
 def get_profile_from_user(id_user: int):
 
@@ -79,6 +94,21 @@ def get_profile_from_user(id_user: int):
 
     except Exception as e:
         raise GetUserException(f"error: {str(e)}")
+
+# Insert student
+def insert_student_to_db(user: UserCreate, id_unit: int):
+    print("HOLAA")
+    # Insert user and get id
+    id_student = insert_user_to_db(user, ProfileEnum.STUDENT, StatusEnum.DISABLED)
+
+    # Get current scholar year and assign the unit and scholar year to the student
+    conn, cursor = get_conn_and_cursor()
+    scholar_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+    query = f"INSERT INTO {T_STUDENT_SCHOLAR_YEAR} (idStudent, idScholarYear, idUnit) VALUES (%s, %s, %s)"
+    values = (id_student, scholar_year, id_unit)
+    cursor.execute(query, values)
+    do_commit(conn, cursor)
+    return {"message": "Student inserted successfully"}
 
 # Insert user
 def insert_user_to_db(user: UserCreate, profile: ProfileEnum, status: StatusEnum):
@@ -119,11 +149,8 @@ def insert_user_to_db(user: UserCreate, profile: ProfileEnum, status: StatusEnum
 
         # Execute query
         cursor.execute(query, values)
-
-        # Commit changes and close connections
         do_commit(conn, cursor)
-
-        return {"message": "User inserted successfully"}
+        return cursor.lastrowid
 
     except IntegrityError as e:
         # Rollback changes and close connections
@@ -131,7 +158,7 @@ def insert_user_to_db(user: UserCreate, profile: ProfileEnum, status: StatusEnum
         return {"error": str(e)}
 
 # Insert users by XML
-def insert_students_to_db_xml(students_xml: str):
+def insert_students_to_db_xml(students_xml: str, id_unit: int):
 
     try:
         root = ET.fromstring(students_xml)
@@ -147,8 +174,8 @@ def insert_students_to_db_xml(students_xml: str):
         # Insert the student. If fails, continue the loop to get the next student
         try:
             student = extract_student_data_from_xml(student, position)
-            insert_user_to_db(student, ProfileEnum.STUDENT, StatusEnum.DISABLED)
-            # send_email_generating_password(email)
+            insert_student_to_db(student, id_unit)
+            #send_email(student.email)
             successful_inserts.append(f"{student.surname}, {student.name}")
         except Exception as e:
             failed_inserts.append((position, str(e)))
@@ -208,36 +235,6 @@ def update_user_status_from_db(id_user: int, new_status: int):
     do_commit(conn, cursor)
 
     return {"message": "User status changed successfully"}
-
-# Get entries
-def get_entries_from_user(id_student: int):
-    # Get the idAgreement
-    # RUTA: obtener el agreement a partir del profileUser,obtener los entries del agreement
-    # Get the connection and the cursor
-    conn, cursor = get_conn_and_cursor()
-
-    query = f"SELECT {ID_NAME_AGREEMENT} FROM {T_AGREEMENT} WHERE {ID_NAME_STUDENT} = {id_student}"
-
-    cursor.execute(query)
-
-    id_agreement = cursor.fetchone()[0]
-
-    # Get the entries
-    query = f"SELECT * FROM {T_ENTRY} WHERE {ID_NAME_AGREEMENT} = {id_agreement}"
-
-    cursor.execute(query)
-    results = cursor.fetchall()
-
-    rows = []
-    columns = [column[0] for column in cursor.description]
-
-    for row in results:
-        row_dict = dict(zip(columns, row))
-        rows.append(row_dict)
-
-    # Close connections
-    close_conn_and_cursor(conn, cursor)
-    return rows
 
 ########## COMPANY ##########
 
@@ -337,13 +334,30 @@ def get_module_from_db(id_module: int):
     return get_row(T_MODULE, ID_NAME_MODULE, id_module)
 
 # Get all modules
+def get_all_modules_from_db():
+    return get_all_rows(T_MODULE)
 
 # Get modules from student
 def get_modules_of_student_from_db(id_student: int):
-    # I have to get the current scholar year id,
-    # the student id and unit where idAgreement is not null in the table student_scholar_year
-    # like this, i will get only a row. Of this row, take the unit
-    return 
+
+    # Get the current scholar year id
+    current_year_id = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+
+    # Get the unit id and student id from the student_scholar_year table
+    query = f"SELECT {ID_NAME_UNIT} FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_SCHOLAR_YEAR} = %s AND {ID_NAME_STUDENT} = %s AND {ID_NAME_AGREEMENT} IS NOT NULL"
+    values = (current_year_id, id_student)
+
+    # Execute the query
+    conn, cursor = get_conn_and_cursor()
+    cursor.execute(query, values)
+    result = cursor.fetchone()
+
+    if result:
+        id_unit = result[0]
+        return get_all_rows_condition(T_MODULE, ID_NAME_UNIT, id_unit)
+
+    close_conn_and_cursor(conn, cursor)
+    return []
 
 # Insert module
 def insert_module_to_db(module: ModuleCreate):
@@ -372,44 +386,63 @@ def update_module_from_db(id_module: int, updated_fields: dict):
 ########## ENTRY ##########
 
 # Get entry
-def get_entry_from_db(id_check: int, id_entry: int, profile: str):
-    
-    grant_access = False
+def get_entry_from_db(id_entry: int):
+    return get_row(T_ENTRY, ID_NAME_ENTRY, id_entry)
 
-    # If is an Admin or Teacher, always grant access to the entry
-    if profile in [ProfileEnum.ADMIN.value, ProfileEnum.TEACHER.value]:
-        grant_access = True
-
-    # Else if is a Student, only grant access if its his/her entry
-    elif profile == ProfileEnum.STUDENT.value:
-        return
-
-    if grant_access:
-        return get_row(T_ENTRY, ID_NAME_ENTRY, id_entry)
-    else:
-        raise HTTPException(status_code=401, detail="Permission denied")
-    
-# Get entries
-def get_all_entries_from_student(id_student: int, profile):
+# Get entries of student
+def get_entries_of_student_from_db(id_check: int, id_student: int, profile: str):
 
     grant_access = False
 
     # If is an Admin or Teacher, always grant access to the student entries
     if profile in [ProfileEnum.ADMIN.value, ProfileEnum.TEACHER.value]:
         grant_access = True
-    
+    # Else if is a Student, grant access if the entries are from him/her
+    elif profile == ProfileEnum.STUDENT.value and id_check == id_student:
+        grant_access = True
+    # Else if is a Laboral, grant access if the entries are from him/her students
+    elif profile == ProfileEnum.LABOR.value and is_student_under_labor_tutor(id_check, id_student):
+        grant_access = True
+
+    id_current_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+    entries = []
 
     if grant_access:
-        # TIENE QUE DEVOLVER LAS ENTRADAS DE UN USUARIO SOLO, Y DE EL ÚLTIMO CURSO ESCOLAR
-        return
+
+        # Get the agreement ID of the student in the current scholar year
+        conn, cursor = get_conn_and_cursor()
+        query = f"SELECT {ID_NAME_AGREEMENT} FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_STUDENT} = {id_student} AND {ID_NAME_SCHOLAR_YEAR} = {id_current_year}"
+        cursor.execute(query)
+        id_agreement = cursor.fetchone()[0]
+        cursor.reset()
+        print(id_agreement)
+
+        if id_agreement is None:
+            raise HTTPException(status_code=404, detail="Object not found")
+        
+        query = f"SELECT {ID_NAME_ENTRY} FROM {T_ENTRY} WHERE {ID_NAME_AGREEMENT} = {id_agreement}"
+        cursor.execute(query)
+        id_entries = cursor.fetchall()
+
+        # Get the list of entries of the user. SELECT THE ENTIRE ENTRY AND THE APPEND INSIDE THE ENTRY THE COMMENTS OF THE ENTRY IN THE ENTRY RESULT
+        entries = []
+        for entry_id in id_entries:
+            entry = get_entry_from_db(entry_id[0])
+            comments = get_comments_of_entry_from_db(entry_id[0])
+            entry['comments'] = comments
+            entries.append(entry)
+
+        close_conn_and_cursor(conn, cursor)
+        return entries
     else:
         raise HTTPException(status_code=401, detail="Permission denied")
 
 # Insert entry
-def insert_entry_to_db(entry: EntryCreate):
+def insert_entry_to_db(id_student: int, entry: EntryCreate):
 
     # Get the current date
     today = datetime.today().date()
+    #today = datetime.strptime("2023-06-30", DATE_FORMAT).date() ###### Descomentar para añadir entradas en otras semanas
 
     # Calculate the date range
     start_date = today - timedelta(days=today.weekday())
@@ -417,6 +450,16 @@ def insert_entry_to_db(entry: EntryCreate):
 
     # Get the connection and the cursor
     conn, cursor = get_conn_and_cursor()
+
+    # Check if an entry already exists within the same week
+    query = f"SELECT {ID_NAME_ENTRY} FROM {T_ENTRY} WHERE startWeek = %s AND endWeek = %s AND idAgreement = %s"
+    values = (start_date, end_date, int(entry.idAgreement))
+    cursor.execute(query, values)
+    existing_entry = cursor.fetchone()
+
+    # If an entry already exists, raise an exception
+    if existing_entry:
+        raise HTTPException(status_code=400, detail="You can only create one entry per week")
 
     # Insert the entry
     query = f"INSERT INTO {T_ENTRY} (startWeek, endWeek, idAgreement) VALUES (%s, %s, %s)"
@@ -430,51 +473,56 @@ def insert_entry_to_db(entry: EntryCreate):
     agreement = get_row(T_AGREEMENT, ID_NAME_AGREEMENT, entry.idAgreement)
 
     agreement_type = agreement.get('agreementType')
-    fct_start_at = agreement.get('fctStartAt', None)
-    fct_end_at = agreement.get('fctEndAt', None)
 
-    # Now I have to add 5 rows to the comments table,
-    # if the user agreement is FCT,
-    # or if is FCT+DUAL and the current date is between fctStartDate and fctEndDate
-    # The comment table has idComment as primary and idEntry as foreign, the id of the entry inserted
+    if agreement_type == AgreementTypeEnum.FCT_DUAL.value:
+        fct_start_at = agreement.get('fctStartAt', None).date()
+        fct_end_at = agreement.get('fctEndAt', None).date()
 
-
-    if agreement_type == AgreementTypeEnum.FCT.value or (agreement_type == AgreementTypeEnum.FCT_DUAL.value and is_in_fct_date(fct_start_at, fct_end_at, today)):
-        # Add five comments (Days of the week)
+    # If its in FCT period, add comments as days
+    if agreement_type == AgreementTypeEnum.FCT.value or (agreement_type == AgreementTypeEnum.FCT_DUAL.value and is_date_between_two_dates(fct_start_at, fct_end_at, today)):
         for _ in range(5):
             # Insert comment into the comments table
             query = f"INSERT INTO {T_COMMENT} (text, hours, observations, idEntry) VALUES (%s, %s, %s, %s)"
             values = ("", 70000, None, new_entry_id)
             cursor.execute(query, values)
+    # Else, add comments as modules
     else:
-        # Insertar el MODULO
-        modules = get_modules_of_student_from_db()
-        return
-    
-     # Commit after loop
+        modules = get_modules_of_student_from_db(id_student)
+        print(modules)
+        for module in modules:
+            query = f"INSERT INTO {T_COMMENT} (text, hours, observations, idEntry, idModule) VALUES (%s, %s, %s, %s, %s)"
+            values = ("", 70000, None, new_entry_id, module[ID_NAME_MODULE])
+            cursor.execute(query, values)
+
+    # Commit after loop
     do_commit(conn, cursor)
-
     return {"message": "Entry inserted successfully"}
-
 
 # Delete entry
 
-########## DAY ##########
 
-# Get day
-def get_day_from_db(id_day: int):
-    conn, cursor = get_conn_and_cursor()
-    # Get the entries
-    query = f"SELECT * FROM {T_DAY} WHERE {ID_NAME_DAY} = {id_day}"
+########## COMMENT ##########
 
-    cursor.execute(query)
+# Get comment
+def get_comment_from_db(id_comment: int):
+    return get_row(T_COMMENT, ID_NAME_COMMENT, id_comment)
 
-    result = cursor.fetchone()
-    row = {}
-    if result:
-        for i, column in enumerate(cursor.description):
-            row[column[0]] = result[i]
-    return row
+# Get comments of entry
+def get_comments_of_entry_from_db(id_entry: int):
+
+    grant_access = True
+
+    if grant_access:
+        return get_all_rows_condition(T_COMMENT, ID_NAME_ENTRY, id_entry)
+    else:
+        raise HTTPException(status_code=401, detail="Permission denied")
+
+# Update comment
+def update_comment_from_db(id_comment: int, updated_fields: dict):
+    return update_table(T_COMMENT, ID_NAME_COMMENT, id_comment, updated_fields)
+    
+
+
 
 # Login
 def login_from_db(auth: LoginCreate):
@@ -525,11 +573,6 @@ def get_row(table_name: str, id_name: int, id_value: int):
         # Get the connection and the cursor
         conn, cursor = get_conn_and_cursor()
 
-        # Get the table's column names
-        select_columns_query = f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'"
-        cursor.execute(select_columns_query)
-        column_names = [col[0] for col in cursor.fetchall()]
-
         # Query to get the object
         select_object_query = f"SELECT * FROM {table_name} WHERE {id_name} = {id_value}"
 
@@ -537,28 +580,23 @@ def get_row(table_name: str, id_name: int, id_value: int):
         cursor.execute(select_object_query)
         object = cursor.fetchone()
 
-        
-
-        # Format the object with column names
-        formatted_object = None
         if object != None:
-            formatted_object = { column_names[i]: value for i, value in enumerate(object) }
-            if formatted_object != None:
-                return formatted_object
-            else:
-                return {"error": "Object has not been built correctly"}
+            columns = [desc[0] for desc in cursor.description]
+            formatted_object = dict(zip(columns, object))
+            return formatted_object
         else:
-            return
-            
-
-    except Exception as e:
-        # Rollback changes and close connections
+            raise HTTPException(status_code=404, detail="Object not found")
+        
+    except HTTPException as e:
         conn.rollback()
-        raise Exception(f"Error retrieving the object: {str(e)}")
-    
+        if e.status_code == 404:
+            return {"detail": e.detail}
+    except Exception as e:
+        conn.rollback()
+        return {"detail": "Error retrieving the object"}
+        
     finally:
-        cursor.close()
-        conn.close()
+        close_conn_and_cursor(conn, cursor)
 
 # Get all rows
 def get_all_rows(table_name: str):
@@ -702,7 +740,7 @@ def delete_row(table_name: str, id_name: str, id_value: int):
 ########## AGREEMENT ##########
 
 # Get agreement
-def get_agreement_from_db(id_agreement: int, profile: str):
+def get_agreement_from_db(id_check: int, id_agreement: int, profile: str):
 
     grant_access = False
 
@@ -711,12 +749,12 @@ def get_agreement_from_db(id_agreement: int, profile: str):
         grant_access = True
 
     # Else if its a Student and is requesting for his own agreement, grant access
-    elif profile == ProfileEnum.STUDENT.value and is_student_agreement():
+    elif profile == ProfileEnum.STUDENT.value and is_student_agreement(id_check, id_agreement):
         grant_access = True
 
-    # Else if its a Laboral tutor and is requesting for the agreement of their students, grant access
-    elif profile == ProfileEnum.LABOR.value and is_agreement_from_his_students():
-        grant_access = True
+    # # Else if its a Laboral tutor and is requesting for the agreement of their students, grant access
+    # elif profile == ProfileEnum.LABOR.value and is_agreement_from_his_students(id_check, id_agreement):
+    #     grant_access = True
     
     # Return the agreement if has granted access
     if grant_access:
@@ -730,7 +768,7 @@ def get_all_agreements_from_db():
     return get_all_rows(T_AGREEMENT)
 
 # Insert agreement
-def insert_agreement_to_db(agreement: AgreementCreate):
+def insert_agreement_to_db(agreement: AgreementCreate, id_student: int):
 
     try:
 
@@ -739,10 +777,20 @@ def insert_agreement_to_db(agreement: AgreementCreate):
 
         # Check if the foreign keys with the roles are valid
         if get_profile_from_user(agreement.idTeacher) != ProfileEnum.TEACHER:
-            raise HTTPException(status_code=400, detail="Role for the provided idTeacher is wrong")
+            raise HTTPException(status_code=400, detail="Role for the provided teacher ID is wrong")
         
         if get_profile_from_user(agreement.idLabor) != ProfileEnum.LABOR:
-            raise HTTPException(status_code=400, detail="Role for the provided idLabor is wrong")
+            raise HTTPException(status_code=400, detail="Role for the provided laboral ID is wrong")
+        
+        if get_profile_from_user(id_student) != ProfileEnum.STUDENT:
+            raise HTTPException(status_code=400, detail="Role for the provided student ID is wrong")
+        
+        # Get the id of the current scholar year
+        id_current_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+
+        # Check if the user has already an agreement in this scholar year
+        if student_has_an_agreement(id_student, id_current_year):
+            raise HTTPException(status_code=400, detail="This student has an agreement this year")
 
         if agreement.agreementType == AgreementTypeEnum.DUAL:
             agreement.fctStartAt = None
@@ -750,6 +798,8 @@ def insert_agreement_to_db(agreement: AgreementCreate):
         elif agreement.agreementType == AgreementTypeEnum.FCT:
             agreement.dualStartAt = None
             agreement.dualEndAt = None
+        elif agreement.agreementType == AgreementTypeEnum.FCT_DUAL:
+            is_fct_dual_dates_valid(agreement.fctStartAt, agreement.fctEndAt, agreement.dualStartAt, agreement.dualEndAt)
 
         # Query
         query = f"INSERT INTO {T_AGREEMENT} (dualStartAt, dualEndAt, fctStartAt, fctEndAt, agreementType, idCompany, idTeacher, idLabor) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
@@ -769,15 +819,18 @@ def insert_agreement_to_db(agreement: AgreementCreate):
         # Execute query
         cursor.execute(query, values)
 
-        # Get the ID of the new row
+        # Get the ID of the new agreement
         new_id = cursor.lastrowid
 
-        # Commit changes and close connections
+        # Commit changes
+        conn.commit()
+
+        # Query to link the agreement to the student this scholar year
+        query = f"UPDATE {T_STUDENT_SCHOLAR_YEAR} SET {ID_NAME_AGREEMENT} = {new_id} WHERE {ID_NAME_STUDENT} = {id_student} AND {ID_NAME_SCHOLAR_YEAR} = {id_current_year}"
+        cursor.execute(query)
         do_commit(conn, cursor)
 
-        inserted_agreement = get_row(T_AGREEMENT, ID_NAME_AGREEMENT, new_id)
-
-        return {"message": "Agreement inserted successfully", "result": inserted_agreement}
+        return {"message": "Agreement inserted successfully"}
 
     except IntegrityError as e:
         # Rollback changes and close connections
@@ -796,40 +849,64 @@ def update_agreement_from_db(id_agreement: int, updated_fields: dict):
 
 # Get scholar year
 def get_scholar_year_from_db(id_scholar_year: int):
-    return
+    return get_row(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, id_scholar_year)
+
+# Get all scholar years
+def get_all_scholar_year_from_db():
+    return get_all_rows(T_SCHOLAR_YEAR)
+
+# Get current scholar year
+def get_current_scholar_year_from_db():
+
+    current_date = datetime.today().date()
+    query = f"SELECT * FROM {T_SCHOLAR_YEAR} WHERE %s BETWEEN startDate AND endDate"
+    values = (current_date,)
+
+    conn, cursor = get_conn_and_cursor()
+    cursor.execute(query, values)
+    result = cursor.fetchone()
+    close_conn_and_cursor(conn, cursor)
+
+    if result:
+        columns = [desc[0] for desc in cursor.description]
+        scholar_year_dict = dict(zip(columns, result))
+        return scholar_year_dict
+    else:
+        return None
 
 # Insert scholar year
 def insert_scholar_year_to_db(scholar_year: ScholarYearCreate):
 
-    # Check that date format is valid
-    if is_date_format_valid([scholar_year.startDate, scholar_year.endDate], DATE_FORMAT) == False:
-        raise HTTPException(status_code=400, detail="Incorrect date format")
+    try: 
+        # Check that date format is valid
+        if is_date_format_valid([scholar_year.startDate, scholar_year.endDate], DATE_FORMAT) == False:
+            raise HTTPException(status_code=400, detail="Incorrect date format")
+        
+        # Check that start date is smaller than end date
+        if scholar_year.startDate >= scholar_year.endDate:
+            raise HTTPException(status_code=400, detail="Start date must be before end date")
+        
+        # Set the year between two dates as YYYY-YYYY format, 2022-2023
+        year = get_year_from_dates(scholar_year.startDate, scholar_year.endDate)
+
+        # Get the connection and the cursor
+        conn, cursor = get_conn_and_cursor()
+
+        # Execute the insert query and commit
+        query = f"INSERT INTO {T_SCHOLAR_YEAR} (startDate, endDate, year, aptitudesPonderation, subjectsPonderation, holidays) VALUES (%s, %s, %s, %s, %s, %s)"
+        values = (scholar_year.startDate, scholar_year.endDate, year, scholar_year.aptitudesPonderation, scholar_year.subjectsPonderation, scholar_year.holidays)
+        cursor.execute(query, values)
+        do_commit(conn, cursor)
+        return {"message": f"Scholar year inserted successfully"}
     
-    # Check that start date is smaller than end date
-    if scholar_year.startDate >= scholar_year.endDate:
-        raise HTTPException(status_code=400, detail="Start date must be before end date")
-    
-    # Set the year between two dates as YYYY-YYYY format, 2022-2023
-    year = get_year_from_dates(scholar_year.startDate, scholar_year.endDate)
-
-    # Get the connection and the cursor
-    conn, cursor = get_conn_and_cursor()
-
-    # Execute the insert query and commit
-    query = f"INSERT INTO {T_SCHOLAR_YEAR} (startDate, endDate, year, aptitudesPonderation, subjectsPonderation, holidays) VALUES (%s, %s, %s, %s, %s, %s)"
-    values = (scholar_year.startDate, scholar_year.endDate, year, scholar_year.aptitudesPonderation, scholar_year.subjectsPonderation, scholar_year.holidays)
-    cursor.execute(query, values)
-    new_id = cursor.lastrowid
-    do_commit(conn, cursor)
-
-    # Get the row inserted
-    inserted_scholar_year = get_row(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, new_id)
-
-    # Return the inserted row
-    return {"message": f"Scholar year inserted successfully", "result": inserted_scholar_year}
+    except IntegrityError as e:
+        if 'unique_year' in str(e):
+            raise HTTPException(status_code=400, detail="A scholar year with the same year already exists")
+        else:
+            raise Exception(e)
 
 # Update grade duration from last scholar year
-def update_grade_duration_from_db(start_date: str, end_date: str):
+def update_grade_duration_from_db(id_scholar_year: int, start_date: str, end_date: str):
 
     # Check that date format is valid
     if is_date_format_valid([start_date, end_date], DATE_FORMAT) == False:
@@ -841,13 +918,12 @@ def update_grade_duration_from_db(start_date: str, end_date: str):
     
     year = get_year_from_dates(start_date, end_date)
     grade_duration = {"startDate": start_date, "endDate": end_date, "year": year}
-    max_id = get_max_id_from_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR)
-    return update_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, max_id, grade_duration)
+    return update_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, id_scholar_year, grade_duration)
 
 # Update holidays from last scholar year
 def update_holidays_from_db(holidays: dict):
-    max_id = get_max_id_from_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR)
-    return update_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, max_id, holidays)
+    id_current_scholar_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+    return update_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, id_current_scholar_year, holidays)
 
 # Update ponderation from last scholar year
 def update_ponderation_from_db(aptitudes: int, subjects: int):
@@ -858,5 +934,93 @@ def update_ponderation_from_db(aptitudes: int, subjects: int):
     
     # If ponderation equals 100, update it
     ponderation = {"aptitudesPonderation": aptitudes, "subjectsPonderation": subjects}
-    max_id = get_max_id_from_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR)
-    return update_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, max_id, ponderation)
+    id_current_scholar_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+    return update_table(T_SCHOLAR_YEAR, ID_NAME_SCHOLAR_YEAR, id_current_scholar_year, ponderation)
+
+########## CHECKS ##########
+
+# Is this student from this company
+def is_student_company(id_student: int, id_company: int):
+
+    id_current_scholar_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+
+    # Get the agreement ID for the student in the current scholar year
+    query = f"SELECT {ID_NAME_AGREEMENT} FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_STUDENT} = %s AND {ID_NAME_SCHOLAR_YEAR} = %s AND {ID_NAME_AGREEMENT} IS NOT NULL"
+    values = (id_student, id_current_scholar_year)
+
+    conn, cursor = get_conn_and_cursor()
+    cursor.execute(query, values)
+    result = cursor.fetchone()
+    close_conn_and_cursor(conn, cursor)
+
+    if result:
+        agreement_id = result[0]
+        agreement = get_row(T_AGREEMENT, ID_NAME_AGREEMENT, agreement_id)
+
+        if agreement and agreement.get(ID_NAME_COMPANY) == id_company:
+            return True
+    
+    return False
+
+# Is this student from this agreement
+def is_student_agreement(id_student: int, id_agreement: int):
+        
+    id_current_scholar_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+
+    # Get the agreement ID for the student in the current scholar year
+    query = f"SELECT {ID_NAME_AGREEMENT} FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_STUDENT} = %s AND {ID_NAME_SCHOLAR_YEAR} = %s AND {ID_NAME_AGREEMENT} = %s"
+    values = (id_student, id_current_scholar_year, id_agreement)
+
+    conn, cursor = get_conn_and_cursor()
+    cursor.execute(query, values)
+    result = cursor.fetchone()
+    close_conn_and_cursor(conn, cursor)
+
+    if result:
+        print(result)
+        return True
+    
+    return False
+
+# Check if this student has an agreement in this scholar year
+def student_has_an_agreement(id_student: int, id_current_year):
+
+    # Get the row
+    conn, cursor = get_conn_and_cursor()
+    query = f"SELECT * FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_STUDENT} = {id_student} AND {ID_NAME_SCHOLAR_YEAR} = {id_current_year} AND {ID_NAME_AGREEMENT} IS NOT NULL"
+    cursor.execute(query)
+    result = cursor.fetchone()
+    close_conn_and_cursor(conn, cursor)
+
+    if result:
+        return True
+    else:
+        return False
+
+# Is this student under certain laboral tutor
+def is_student_under_labor_tutor(id_laboral_tutor: int, id_student: int):
+
+    if get_profile_from_user(id_student) != ProfileEnum.STUDENT.value:
+        raise HTTPException(status_code=400, detail="This student id does not match with a student")
+
+    id_current_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+
+    conn, cursor = get_conn_and_cursor()
+
+
+    # Try to get the agreements ids by the id of the laboral tutor. Then get the idAgreements list and look into
+    # student_scholar_year where idAgreement equals idAgreement and idStudent equals id_student and current scholar year id equals current scholar year id
+
+    query = f"SELECT {ID_NAME_AGREEMENT} FROM {T_AGREEMENT} WHERE {ID_NAME_LABOR} = {id_laboral_tutor}"
+    cursor.execute(query)
+    agreement_ids = [row[0] for row in cursor.fetchall()]
+
+    query = f"SELECT {ID_NAME_AGREEMENT} FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_STUDENT} = {id_student} AND {ID_NAME_SCHOLAR_YEAR} = {id_current_year}"
+    cursor.execute(query)
+    student_agreements = [row[0] for row in cursor.fetchall()]
+
+    if not any(agreement_id in student_agreements for agreement_id in agreement_ids):
+        raise HTTPException(status_code=400, detail="This student is not under the specified laboral tutor")
+    
+    close_conn_and_cursor(conn, cursor)
+    return True

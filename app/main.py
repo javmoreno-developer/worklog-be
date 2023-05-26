@@ -61,6 +61,13 @@ async def get_students(id_check: int, api_key: str = Header(...)):
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
     return get_students_from_db()
 
+# Get students with no agreement this scholar year
+@app.get("/api/user/get/students/no-agreement")
+async def get_students_with_no_agreement(id_check: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
+    return get_students_with_no_agreement_from_db()
+
 # Get teachers
 @app.get("/api/user/get/teachers")
 async def get_teachers(id_check: int, api_key: str = Header(...)):
@@ -82,34 +89,34 @@ async def get_disabled_users(id_check: int, api_key: str = Header(...)):
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
     return get_disabled_users_from_db()
 
-# Add student
+# Add student ## MIRAR CONTRASEÑA
 @app.post("/api/user/add-student")
-async def add_student(id_check: int, student: UserCreate, api_key: str = Header(...)):
+async def add_student(id_check: int, student: UserCreate, id_unit: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
-    return insert_user_to_db(student, ProfileEnum.STUDENT, StatusEnum.DISABLED)
+    return insert_student_to_db(student, id_unit)
 
-# Add teacher
+# Add teacher ## MIRAR CONTRASEÑA
 @app.post("/api/user/add-teacher")
 async def add_teacher(id_check: int, teacher: UserCreate, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
     return insert_user_to_db(teacher, ProfileEnum.TEACHER, StatusEnum.ENABLED)
 
-# Add laboral tutor
+# Add laboral tutor ## MIRAR CONTRASEÑA
 @app.post("/api/user/add-labor")
 async def add_labor(id_check: int, labor: UserCreate, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
     return insert_user_to_db(labor, ProfileEnum.LABOR, StatusEnum.ENABLED)
 
-# Add students set by XML
+# Add students set by XML ## MIRAR CONTRASEÑA
 @app.post("/api/user/add-students-set")
-async def add_students_set(id_check: int, request: Request, api_key: str = Header(...)):
+async def add_students_set(id_check: int, id_unit: int, request: Request, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
     students_xml = await request.body()
-    return insert_students_to_db_xml(students_xml)
+    return insert_students_to_db_xml(students_xml, id_unit)
 
 # Delete user
 @app.delete("/api/user/delete")
@@ -221,42 +228,42 @@ async def update_unit(id_check: int, id_unit: int, updated_fields: dict, api_key
 
 ########## MODULE ##########
 
-# Get module #
+# Get module
 @app.get("/api/module/get")
 async def get_module(id_check: int, id_module: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]))
     return get_module_from_db(id_module)
 
-# Get all modules #
+# Get all modules
 @app.get("/api/module/get/all")
 async def get_all_modules(id_check: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
-    return get_all_rows(T_MODULE)
+    return get_all_modules_from_db()
 
-# Get module from student OPCIONAL
+# Get modules from student
 @app.get("/api/module/get/student-modules")
 async def get_modules_of_student(id_check: int, id_student: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.LABOR.value]))
     return get_modules_of_student_from_db(id_student)
 
-# Add module #
+# Add module
 @app.post("/api/module/add")
 async def add_module(id_check: int, module: ModuleCreate, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
     return insert_module_to_db(module)
 
-# Delete module #
+# Delete module
 @app.delete("/api/module/delete")
 async def delete_module(id_check: int, id_module: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
     return delete_module_from_db(id_module)
 
-# Update module #
+# Update module
 @app.put("/api/module/update")
 async def update_module(id_check: int, id_module: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
@@ -265,75 +272,61 @@ async def update_module(id_check: int, id_module: int, updated_fields: dict, api
 
 ########## ENTRY ##########
 
-@app.get("/api/entry/get")
-async def get_entry(id_check: int, id_entry: int, api_key: str = Header(...)):
-    await(validate_api_key(api_key))
-    profile = await(validate_permissions(id_check, [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]))
-    return get_entry_from_db(id_entry, profile)
+# @app.get("/api/entry/get")
+# async def get_entry(id_check: int, id_entry: int, api_key: str = Header(...)):
+#     await(validate_api_key(api_key))
+#     profile = await(validate_permissions(id_check, [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]))
+#     return get_entry_from_db(id_entry, profile)
 
-# Add entry MIRAR FECHA DE LA ENTRADA
+# Get all entries from student
+@app.get("/api/entry/get/student-entries")
+async def get_entries_of_student(id_check: int, id_student: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    permissions = [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]
+    profile = await(validate_permissions(id_check, permissions))
+    return get_entries_of_student_from_db(id_check, id_student, profile)
+
+# Add entry
 @app.post("/api/entry/add")
 async def add_entry(id_check: int, entry: EntryCreate, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.STUDENT.value]))
-    return insert_entry_to_db(entry)
+    return insert_entry_to_db(id_check, entry)
 
-#
-
-## HAY QUE CHECKEAR SI ES LABOR QUE SOLO SEAN LAS ENTRADAS DE LOS QUE TUTORIZA,
-# Y SI ES ALUMNO SOLO SUS PROPIAS ENTRADAS, SI NO, DENEGAR
-
-# Get student entries
-@app.get("/api/user/get-entries")
-async def get_entries(id_check: int, id_user: int, api_key: str = Header(...)):
-    await(validate_api_key(api_key))
-    grant_acess = False
-    permissions = [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]
-    profile = await(validate_permissions(id_check, permissions))
-
-    # If its an Admin or Teacher, always grant access
-    if profile in [ProfileEnum.ADMIN.value, ProfileEnum.TEACHER.value]:
-        grant_acess = True
-    # If its a student, grant access if its his/her own entries
-    elif profile == ProfileEnum.STUDENT.value and id_check == id_user:
-        grant_acess = True
-    # If its a labor, grant access if its his/her student entries
-    elif profile == ProfileEnum.LABOR.value and is_student_under_labor_tutor(id_check, id_user):
-        grant_acess = True
-
-    # Return the entries from the user if has granted access
-    if grant_acess:
-        return get_entries_from_user(id_user)
-    # Raise exception if has NOT granted access
-    else:
-        raise HTTPException(status_code=401, detail="Permission denied")
-
+# 
 
 ########## COMMENT ##########
 
-## Get comment
+# Get comment
 @app.get("/api/comment/get")
-async def get_comment(id_check: int, id_day: int, api_key: str = Header(...)):
+async def get_comment(id_check: int, id_comment: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]))
-    return get_day_from_db(id_day)
+    return get_comment_from_db(id_comment)
 
-## Update day
+# Get comments of entry ### FALTAN COMPROBACIONES
+@app.get("/api/comment/get/entry")
+async def get_comments_of_entry(id_check: int, id_entry: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]))
+    return get_comments_of_entry_from_db(id_entry)
+
+## Update comment
 @app.put("/api/comment/update")
-async def update_comment(id_check: int, id_day: int, updated_fields: dict, api_key: str = Header(...)):
+async def update_comment(id_check: int, id_comment: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.STUDENT.value]))
-    return update_table_db(T_DAY, ID_NAME_DAY, id_day, updated_fields)
+    return update_comment_from_db(id_comment, updated_fields)
 
 ########## AGREEMENT ##########
 
-# Get agreement
+# Get agreement  ###### MIRAR Y PENSAR PARA EL LABORAAAAAAAAAAAAAAAAAAAAAAAAAAL SI LE DAMOS ACCESO AL CONVENIO DE SUS ESTUDIANTES O NO
 @app.get("/api/agreement/get")
 async def get_agreement(id_check: int, id_agreement: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    permissions = [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]
+    permissions = [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value]
     profile = await(validate_permissions(id_check, permissions))
-    return get_agreement_from_db(id_agreement, profile)
+    return get_agreement_from_db(id_check, id_agreement, profile)
 
 # Get all agreements
 @app.get("/api/agreement/get/all")
@@ -344,10 +337,10 @@ async def get_all_agreements(id_check: int, api_key: str = Header(...)):
 
 # Add agreement
 @app.post("/api/agreement/add")
-async def add_agreement(id_check: int, agreement: AgreementCreate, api_key: str = Header(...)):
+async def add_agreement(id_check: int, id_student: int, agreement: AgreementCreate, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
-    return insert_agreement_to_db(agreement)
+    return insert_agreement_to_db(agreement, id_student)
 
 # Delete agreement
 @app.delete("/api/agreement/delete")
@@ -365,6 +358,27 @@ async def update_agreement(id_check: int, id_agreement: int, updated_fields: dic
 
 ########## SCHOLAR YEAR ##########
 
+# Get scholar year
+@app.get("/api/scholar-year/get")
+async def get_scholar_year(id_check: int, id_scholar_year: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    return get_scholar_year_from_db(id_scholar_year)
+
+# Get all scholar years
+@app.get("/api/scholar-year/get/all")
+async def get_current_scholar_year(id_check: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    return get_all_scholar_year_from_db()
+
+# Get current scholar year
+@app.get("/api/scholar-year/get/current")
+async def get_current_scholar_year(id_check: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    return get_current_scholar_year_from_db()
+
 # Add scholar year
 @app.post("/api/scholar-year/add")
 async def add_scholar_year(id_check: int, scholar_year: ScholarYearCreate, api_key: str = Header(...)):
@@ -374,10 +388,10 @@ async def add_scholar_year(id_check: int, scholar_year: ScholarYearCreate, api_k
 
 # Update grade duration
 @app.put("/api/scholar-year/grade-duration")
-async def update_grade_duration(id_check: int, start_date: str, end_date: str, api_key: str = Header(...)):
+async def update_grade_duration(id_check: int, id_scholar_year: int, start_date: str, end_date: str, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
-    return update_grade_duration_from_db(start_date, end_date)
+    return update_grade_duration_from_db(id_scholar_year, start_date, end_date)
 
 # Update holidays
 @app.put("/api/scholar-year/holidays")

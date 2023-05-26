@@ -332,7 +332,8 @@ CREATE TABLE `report_module` (
 -- Indices de la tabla `scholarYear`
 --
 ALTER TABLE `scholarYear`
-  ADD PRIMARY KEY (`idScholarYear`);
+  ADD PRIMARY KEY (`idScholarYear`),
+  ADD UNIQUE KEY `unique_year` (`year`);;
 
 --
 -- Indices de la tabla `report`
@@ -521,7 +522,7 @@ ALTER TABLE `student_scholar_year`
   ADD CONSTRAINT `student_scholar_year_ibfk_1` FOREIGN KEY (`idStudent`) REFERENCES `user` (`idUser`) ON DELETE CASCADE,
   ADD CONSTRAINT `student_scholar_year_ibfk_2` FOREIGN KEY (`idScholarYear`) REFERENCES `scholarYear` (`idScholarYear`) ON DELETE CASCADE,
   ADD CONSTRAINT `student_scholar_year_ibfk_3` FOREIGN KEY (`idUnit`) REFERENCES `unit` (`idUnit`) ON DELETE CASCADE,
-  ADD CONSTRAINT `student_scholar_year_ibfk_4` FOREIGN KEY (`idAgreement`) REFERENCES `agreement` (`idAgreement`) ON DELETE CASCADE;
+  ADD CONSTRAINT `student_scholar_year_ibfk_4` FOREIGN KEY (`idAgreement`) REFERENCES `agreement` (`idAgreement`) ON DELETE SET NULL;
 
 --
 -- Filtros para la tabla `report`
