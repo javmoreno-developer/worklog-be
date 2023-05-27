@@ -62,6 +62,7 @@ class ModuleBase(BaseModel):
     name: str
     initials: str
     hours: Optional[int] = None
+    description: Optional[str] = None
     idUnit: int
 
 class ModuleCreate(ModuleBase):

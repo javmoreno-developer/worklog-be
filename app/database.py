@@ -365,8 +365,8 @@ def insert_module_to_db(module: ModuleCreate):
     conn, cursor = get_conn_and_cursor()
 
     # Ejecutar la consulta INSERT
-    query = f"INSERT INTO {T_MODULE} (name, initials, hours, idUnit) VALUES (%s, %s, %s, %s)"
-    values = (module.name, module.initials, int(module.hours), int(module.idUnit))
+    query = f"INSERT INTO {T_MODULE} (name, initials, hours, description, idUnit) VALUES (%s, %s, %s, %s, %s)"
+    values = (module.name, module.initials, module.hours, module.description, module.idUnit)
     cursor.execute(query, values)
     
     # Hacer commit de los cambios y cerrar la conexión

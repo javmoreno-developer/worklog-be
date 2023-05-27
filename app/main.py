@@ -15,7 +15,7 @@ api_key_header = APIKeyHeader(name="X-API-Key")
 
 origins = [
     "http://localhost",
-    "http://localhost:4200",
+    "http://localhost:4200"
 ]
 
 app.add_middleware(
