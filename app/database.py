@@ -97,7 +97,6 @@ def get_profile_from_user(id_user: int):
 
 # Insert student
 def insert_student_to_db(user: UserCreate, id_unit: int):
-    print("HOLAA")
     # Insert user and get id
     id_student = insert_user_to_db(user, ProfileEnum.STUDENT, StatusEnum.DISABLED)
 
@@ -927,7 +926,6 @@ def update_holidays_from_db(holidays: dict):
 
 # Update ponderation from last scholar year
 def update_ponderation_from_db(aptitudes: int, subjects: int):
-
     # If ponderation does not equal 100, raise HTTPException
     if aptitudes + subjects != 100:
         raise HTTPException(status_code=400, detail="Aptitudes and Subjects must sum a total of 100")
@@ -1024,3 +1022,60 @@ def is_student_under_labor_tutor(id_laboral_tutor: int, id_student: int):
     
     close_conn_and_cursor(conn, cursor)
     return True
+
+# Get unit,scholar year and agreement from a user
+def get_rows_of_students_from_db(students: dict,id_check: int):
+    result = []
+
+    for user in students:
+        localResult = {}
+        student = user.dict()
+        #return student["name"]
+    
+        # Obtain id of every data that we want
+        query = f"SELECT * FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_STUDENT} = %s"
+        values = (student["idUser"],)  # Colocamos el ID del estudiante dentro de una tupla
+
+        conn, cursor = get_conn_and_cursor()
+        cursor.execute(query, values)
+        id_collection = cursor.fetchone()
+        close_conn_and_cursor(conn, cursor)
+
+        ## obtain unit 
+        unitRow = get_unit_from_db(id_collection[3])
+        unit = str(unitRow["level"]) + unitRow["initials"]
+
+        ## obtain scholar year
+        scholarRow = get_scholar_year_from_db(id_collection[2])
+        scholar = scholarRow["year"]
+
+        ## obtain agreement
+        ##agreementRow = get_agreement_from_db(id_check,id_collection[4],ProfileEnum.ADMIN.value)
+        ##agreement = agreementRow["agreementType"]
+
+        ## map the result
+        localResult["unit"] = unit
+        localResult["scholar_year"] = scholar
+        ##localResult["agreement"] = agreement
+
+        result.append(localResult)
+
+    return result
+
+def get_all_module_initials_from_db(modules: dict):
+    result = []
+    for module in modules:
+        localResult = {}
+        #return student["name"]
+    
+        # Obtain id of every data that we want
+        query = f"SELECT * FROM {T_UNIT} WHERE {ID_NAME_UNIT} = %s"
+        values = (module,)  # Colocamos el ID del modulo dentro de una tupla
+
+        conn, cursor = get_conn_and_cursor()
+        cursor.execute(query, values)
+        collection = cursor.fetchone()
+        close_conn_and_cursor(conn, cursor)
+        if collection is not None and len(collection) > 3:
+            result.append(collection[3])
+    return result

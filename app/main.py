@@ -61,6 +61,14 @@ async def get_students(id_check: int, api_key: str = Header(...)):
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
     return get_students_from_db()
 
+# Get unit,scholar year from a user
+@app.post("/api/user/get/row")
+async def get_rows_of_students(id_check: int, students: List[User],api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    return get_rows_of_students_from_db(students,id_check)
+
+
 # Get students with no agreement this scholar year
 @app.get("/api/user/get/students/no-agreement")
 async def get_students_with_no_agreement(id_check: int, api_key: str = Header(...)):
@@ -241,6 +249,13 @@ async def get_all_modules(id_check: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
     return get_all_modules_from_db()
+
+# Get a bunch of initials from id's
+@app.post("/api/module/get/initials")
+async def get_all_module_initials(id_check: int, modules: List[int], api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    return get_all_module_initials_from_db(modules)
 
 # Get modules from student
 @app.get("/api/module/get/student-modules")
