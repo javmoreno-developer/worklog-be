@@ -188,7 +188,7 @@ class Agreement(AgreementBase):
 class ScholarYearBase(BaseModel):
     startDate: str
     endDate: str
-    year: Optional[int]
+    year: str
     aptitudesPonderation: Optional[int]
     subjectsPonderation: Optional[int]
     holidays: Optional[str]

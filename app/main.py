@@ -15,7 +15,8 @@ api_key_header = APIKeyHeader(name="X-API-Key")
 
 origins = [
     "http://localhost",
-    "http://localhost:4200"
+    "http://localhost:4200",
+    "http://192.168.1.57"
 ]
 
 app.add_middleware(
@@ -261,7 +262,7 @@ async def get_all_module_initials(id_check: int, modules: List[int], api_key: st
 @app.get("/api/module/get/student-modules")
 async def get_modules_of_student(id_check: int, id_student: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    await(validate_permissions(id_check, [ProfileEnum.LABOR.value]))
+    await(validate_permissions(id_check, [ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value, ProfileEnum.STUDENT.value]))
     return get_modules_of_student_from_db(id_student)
 
 # Add module

@@ -525,18 +525,21 @@ def update_comment_from_db(id_comment: int, updated_fields: dict):
 
 # Login
 def login_from_db(auth: LoginCreate):
-    conn, cursor = get_conn_and_cursor()
-    # Get the entries
-    query = f"SELECT * FROM {T_USER} WHERE email = '{auth.email}' AND password = '{auth.password}'"
 
+    # Get the entries
+    conn, cursor = get_conn_and_cursor()
+    query = f"SELECT * FROM {T_USER} WHERE email = '{auth.email}' AND password = '{auth.password}'"
     cursor.execute(query)
     result = cursor.fetchone()
     close_conn_and_cursor(conn, cursor)
-    row = {}
+
+    user = {}
     if result:
         for i, column in enumerate(cursor.description):
-            row[column[0]] = result[i]
-    return row
+            user[column[0]] = result[i]
+        return user
+    else:
+        raise HTTPException(status_code=404, detail="User not found")
 
 
 # Drop the database

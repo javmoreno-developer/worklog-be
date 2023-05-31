@@ -87,7 +87,7 @@ def send_email(emailReceiver: str):
         
         return {"message": "Email sent"}
     else:
-        return {"message": "The user does not exist"}
+        raise HTTPException(status_code=404, detail="The user does not exist")
     
 def import_mysql_database():
         
