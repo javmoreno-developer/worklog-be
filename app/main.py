@@ -304,10 +304,10 @@ async def get_entries_of_student(id_check: int, id_student: int, api_key: str = 
 
 # Add entry
 @app.post("/api/entry/add")
-async def add_entry(id_check: int, entry: EntryCreate, api_key: str = Header(...)):
+async def add_entry(id_check: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.STUDENT.value]))
-    return insert_entry_to_db(id_check, entry)
+    return insert_entry_to_db(id_check)
 
 # 
 
@@ -327,12 +327,12 @@ async def get_comments_of_entry(id_check: int, id_entry: int, api_key: str = Hea
     await(validate_permissions(id_check, [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]))
     return get_comments_of_entry_from_db(id_entry)
 
-## Update comment
-@app.put("/api/comment/update")
-async def update_comment(id_check: int, id_comment: int, updated_fields: dict, api_key: str = Header(...)):
+## Update comment CHANGE TO UPDATE ENTIRE ENTRY
+@app.put("/api/entry/update")
+async def update_comment(id_check: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.STUDENT.value]))
-    return update_comment_from_db(id_comment, updated_fields)
+    return update_entry_from_db(updated_fields)
 
 ########## AGREEMENT ##########
 

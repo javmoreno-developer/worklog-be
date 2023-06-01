@@ -414,7 +414,6 @@ def get_entries_of_student_from_db(id_check: int, id_student: int, profile: str)
         cursor.execute(query)
         id_agreement = cursor.fetchone()[0]
         cursor.reset()
-        print(id_agreement)
 
         if id_agreement is None:
             raise HTTPException(status_code=404, detail="Object not found")
@@ -437,7 +436,17 @@ def get_entries_of_student_from_db(id_check: int, id_student: int, profile: str)
         raise HTTPException(status_code=401, detail="Permission denied")
 
 # Insert entry
-def insert_entry_to_db(id_student: int, entry: EntryCreate):
+def insert_entry_to_db(id_student: int):
+
+    id_current_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+
+    # Get the student agreement
+    conn, cursor = get_conn_and_cursor()
+    query = f"SELECT {ID_NAME_AGREEMENT} FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_SCHOLAR_YEAR} = %s AND {ID_NAME_STUDENT} = %s"
+    values = (id_current_year, id_student)
+    cursor.execute(query, values)
+    id_agreement = cursor.fetchone()[0]
+    cursor.reset()
 
     # Get the current date
     today = datetime.today().date()
@@ -447,12 +456,9 @@ def insert_entry_to_db(id_student: int, entry: EntryCreate):
     start_date = today - timedelta(days=today.weekday())
     end_date = start_date + timedelta(days=6)
 
-    # Get the connection and the cursor
-    conn, cursor = get_conn_and_cursor()
-
     # Check if an entry already exists within the same week
     query = f"SELECT {ID_NAME_ENTRY} FROM {T_ENTRY} WHERE startWeek = %s AND endWeek = %s AND idAgreement = %s"
-    values = (start_date, end_date, int(entry.idAgreement))
+    values = (start_date, end_date, id_agreement)
     cursor.execute(query, values)
     existing_entry = cursor.fetchone()
 
@@ -462,14 +468,14 @@ def insert_entry_to_db(id_student: int, entry: EntryCreate):
 
     # Insert the entry
     query = f"INSERT INTO {T_ENTRY} (startWeek, endWeek, idAgreement) VALUES (%s, %s, %s)"
-    values = (start_date, end_date, int(entry.idAgreement))
+    values = (start_date, end_date, id_agreement)
     cursor.execute(query, values)
     conn.commit()
 
     # Get the id of the inserted entry
     new_entry_id = cursor.lastrowid
 
-    agreement = get_row(T_AGREEMENT, ID_NAME_AGREEMENT, entry.idAgreement)
+    agreement = get_row(T_AGREEMENT, ID_NAME_AGREEMENT, id_agreement)
 
     agreement_type = agreement.get('agreementType')
 
@@ -487,7 +493,6 @@ def insert_entry_to_db(id_student: int, entry: EntryCreate):
     # Else, add comments as modules
     else:
         modules = get_modules_of_student_from_db(id_student)
-        print(modules)
         for module in modules:
             query = f"INSERT INTO {T_COMMENT} (text, hours, observations, idEntry, idModule) VALUES (%s, %s, %s, %s, %s)"
             values = ("", 70000, None, new_entry_id, module[ID_NAME_MODULE])
@@ -495,7 +500,14 @@ def insert_entry_to_db(id_student: int, entry: EntryCreate):
 
     # Commit after loop
     do_commit(conn, cursor)
-    return {"message": "Entry inserted successfully"}
+
+    entry = get_entry_from_db(new_entry_id)
+    comments = get_comments_of_entry_from_db(new_entry_id)
+    entry['comments'] = comments
+    if entry != None:
+        return {"message": "Entry inserted successfully", "result": entry}
+    else:
+        raise HTTPException(status_code=404, detail="Object not found")
 
 # Delete entry
 
@@ -516,9 +528,15 @@ def get_comments_of_entry_from_db(id_entry: int):
     else:
         raise HTTPException(status_code=401, detail="Permission denied")
 
-# Update comment
-def update_comment_from_db(id_comment: int, updated_fields: dict):
-    return update_table(T_COMMENT, ID_NAME_COMMENT, id_comment, updated_fields)
+# Update entry
+def update_entry_from_db(updated_fields: dict):
+
+    for _, comment_data in updated_fields.items():
+        comment_data.pop("expandable")
+        id_comment = comment_data['idComment']
+        update_table(T_COMMENT, ID_NAME_COMMENT, id_comment, comment_data)
+
+    return {"message": "Comments updated successfully"}
     
 
 
@@ -694,10 +712,7 @@ def update_table(table_name: str, id_name: str, id_value: int, updated_fields: d
         # Commit changes
         do_commit(conn, cursor)
 
-        # Get the updated object
-        formatted_updated_obj = get_row(table_name, id_name, id_value)
-
-        return {"message": f"{table_name.capitalize()} updated successfully", "result": formatted_updated_obj}
+        return {"message": f"{table_name.capitalize()} updated successfully"}
 
     except Exception as e:
         # Rollback changes and close connections
@@ -706,7 +721,6 @@ def update_table(table_name: str, id_name: str, id_value: int, updated_fields: d
 
 ########## General DELETE for all tables  ##########
 
-# CAMBIAR EL MENSAJE SI NO BORRA UN OBJETO PORQUE NO LO ENCUENTRA
 def delete_row(table_name: str, id_name: str, id_value: int):
 
     try:
@@ -978,10 +992,9 @@ def is_student_agreement(id_student: int, id_agreement: int):
     close_conn_and_cursor(conn, cursor)
 
     if result:
-        print(result)
         return True
-    
-    return False
+    else:
+        return False
 
 # Check if this student has an agreement in this scholar year
 def student_has_an_agreement(id_student: int, id_current_year):
