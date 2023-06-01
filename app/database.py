@@ -39,6 +39,42 @@ def get_user_from_db(id_check: int, id_user: int, profile: str):
 def get_students_from_db():
     return get_all_rows_condition(T_USER, "profile", ProfileEnum.STUDENT.value)
 
+# Get my students
+def get_my_students_from_db(id_user: int, is_teacher: bool):
+
+    conn, cursor = get_conn_and_cursor()
+
+    if is_teacher:
+        query = f"SELECT {ID_NAME_AGREEMENT} FROM {T_AGREEMENT} WHERE {ID_NAME_TEACHER} = {id_user}"
+    else:
+        query = f"SELECT {ID_NAME_AGREEMENT} FROM {T_AGREEMENT} WHERE {ID_NAME_LABOR} = {id_user}"
+
+    # Get the ACTIVE agreement IDs of this teacher or labor tutor
+    cursor.execute(query)
+    results = cursor.fetchall()
+    cursor.reset()
+    ids_agreement = [result[0] for result in results]
+    ids_agreement_str = ",".join(str(id_agreement) for id_agreement in ids_agreement)
+    print(ids_agreement)
+    print(ids_agreement_str)
+
+    # Get the IDs of the students asociated with this agreements
+    id_current_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+    query = f"SELECT {ID_NAME_STUDENT} FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_SCHOLAR_YEAR} = {id_current_year} AND {ID_NAME_AGREEMENT} IN ({ids_agreement_str})"
+    cursor.execute(query)
+    results = cursor.fetchall()
+    cursor.reset()
+    ids_student = [result[0] for result in results]
+
+    # Get the students
+    students = []
+    for id in ids_student:
+        student = get_row(T_USER, ID_NAME_USER, id)
+        students.append(student)
+
+    close_conn_and_cursor(conn, cursor)
+    return students
+
 # Get teachers
 def get_teachers_from_db():
     return get_all_rows_condition(T_USER, "profile", ProfileEnum.TEACHER.value)

@@ -16,7 +16,8 @@ api_key_header = APIKeyHeader(name="X-API-Key")
 origins = [
     "http://localhost",
     "http://localhost:4200",
-    "http://192.168.1.57"
+    "http://192.168.1.57",
+    "http://192.168.100.14"
 ]
 
 app.add_middleware(
@@ -61,6 +62,20 @@ async def get_students(id_check: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
     return get_students_from_db()
+
+# Get my students (TEACHER)
+@app.get("/api/user/get/teacher-students")
+async def get_my_students_labor(id_check: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
+    return get_my_students_from_db(id_check, True)
+
+# Get my students (LABOR)
+@app.get("/api/user/get/labor-students")
+async def get_my_students_labor(id_check: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.LABOR.value]))
+    return get_my_students_from_db(id_check, False)
 
 # Get unit,scholar year from a user
 @app.post("/api/user/get/row")
