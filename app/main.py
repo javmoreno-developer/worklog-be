@@ -56,6 +56,14 @@ async def get_user(id_check: int, id_user: int, api_key: str = Header(...)):
     profile = await(validate_permissions(id_check, permissions))
     return get_user_from_db(id_check, id_user, profile)
 
+# Get student by idAgreement
+@app.get("/api/user/get/agreement")
+async def get_user_by_agreement(id_check: int, id_agreement: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    permissions = [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]
+    profile = await(validate_permissions(id_check, permissions))
+    return get_user_by_agreement_from_db(id_agreement)
+
 # Get students
 @app.get("/api/user/get/students")
 async def get_students(id_check: int, api_key: str = Header(...)):
@@ -361,11 +369,18 @@ async def get_agreement(id_check: int, id_agreement: int, api_key: str = Header(
 
 # Get all agreements
 @app.get("/api/agreement/get/all")
-async def get_all_agreements(id_check: int, api_key: str = Header(...)):
+async def get_all_agreements(id_check: int,complete: bool = False, api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
-    return get_all_agreements_from_db()
+    profile = await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
+    return get_all_agreements_from_db(id_check, complete, profile)
 
+# Get name of company,labor, teacher of an agreement
+@app.get("/api/agreement/get/table")
+async def get_table_of_agreements(id_check: int, id_company: int, id_labor: int, id_teacher: int,id_agreement: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    profile = await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    return get_table_of_agreements_from_db(id_check, id_agreement, id_company,id_labor,id_teacher,profile)
+    
 # Add agreement
 @app.post("/api/agreement/add")
 async def add_agreement(id_check: int, id_student: int, agreement: AgreementCreate, api_key: str = Header(...)):

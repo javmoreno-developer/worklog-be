@@ -165,10 +165,10 @@ class AgreementTypeEnum(str, Enum):
     FCT_DUAL = 'fct+dual'
 
 class AgreementBase(BaseModel):
-    dualStartAt: str
-    dualEndAt: str
-    fctStartAt: str
-    fctEndAt: str
+    dualStartAt: Optional[str]
+    dualEndAt: Optional[str]
+    fctStartAt: Optional[str]
+    fctEndAt: Optional[str]
     agreementType: AgreementTypeEnum
     idCompany: int
     idTeacher: int
