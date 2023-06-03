@@ -499,9 +499,10 @@ def insert_entry_to_db(id_student: int):
     existing_entry = cursor.fetchone()
 
     # If an entry already exists, raise an exception
-    if existing_entry:
-        raise HTTPException(status_code=400, detail="You can only create one entry per week")
+    #if existing_entry:
+    #    raise HTTPException(status_code=400, detail="You can only create one entry per week")
 
+    cursor.reset()
     # Insert the entry
     query = f"INSERT INTO {T_ENTRY} (startWeek, endWeek, idAgreement) VALUES (%s, %s, %s)"
     values = (start_date, end_date, id_agreement)
@@ -816,8 +817,21 @@ def get_agreement_from_db(id_check: int, id_agreement: int, profile: str):
         raise HTTPException(status_code=401, detail="Permission denied")
 
 # Get all agreements
-def get_all_agreements_from_db():
-    return get_all_rows(T_AGREEMENT)
+def get_all_agreements_from_db(id_check: int, complete: bool,profile: str):
+    if complete == False:
+        return get_all_rows(T_AGREEMENT)
+    else:
+        result = []
+        rows = get_all_rows(T_AGREEMENT)
+        for row in rows:
+            #get_table_of_agreements_from_db(id_check: int,id_company: int, id_labor: int, id_teacher: int,profile: str):
+            #get_table_of_agreements_from_db(id_check: int,id_agreement: int, id_company: int, id_labor: int, id_teacher: int, profile: str):
+
+            data = get_table_of_agreements_from_db(id_check,row["idAgreement"],row["idCompany"],row["idLabor"],row["idTeacher"],profile)
+            row["data"]= data
+            result.append(row)
+        return result
+
 
 # Insert agreement
 def insert_agreement_to_db(agreement: AgreementCreate, id_student: int):
@@ -1139,3 +1153,29 @@ def get_all_module_initials_from_db(modules: dict):
         if collection is not None and len(collection) > 3:
             result.append(collection[3])
     return result
+
+def get_table_of_agreements_from_db(id_check: int,id_agreement: int, id_company: int, id_labor: int, id_teacher: int, profile: str):
+    result= []
+
+    ## Obtain company from id
+    company = get_company_from_db(id_check,id_company,profile)
+    result.append(company["name"])
+
+    ## Obtain labor from id
+    labor = get_user_from_db(id_check,id_labor, profile)
+    result.append(labor["surname"]+ ", " + labor["name"])
+
+    ## Obtain teacher from id
+    labor = get_user_from_db(id_check,id_teacher, profile)
+    result.append(labor["name"]+ ", " + labor["name"])
+
+    ## Obtain student from id agreement
+    idUser = get_user_by_agreement_from_db(id_agreement)[0]["idStudent"]
+    user = get_user_from_db(id_check,idUser,profile)
+    user = [user["idUser"],user["name"]]
+    result.append(user)
+
+    return result
+
+def get_user_by_agreement_from_db(id_agreement: int):
+    return get_all_rows_condition(T_STUDENT_SCHOLAR_YEAR, "idAgreement", id_agreement)
