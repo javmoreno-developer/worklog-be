@@ -249,7 +249,7 @@ async def add_unit(id_check: int, unit: UnitCreate, api_key: str = Header(...)):
 async def delete_unit(id_check: int, id_unit: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
-    return delete_unit_from_db(T_UNIT, ID_NAME_UNIT, id_unit)
+    return delete_unit_from_db(id_unit)
 
 # Update unit
 @app.put("/api/unit/update")
