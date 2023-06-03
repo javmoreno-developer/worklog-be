@@ -346,7 +346,7 @@ async def get_comments_of_entry(id_check: int, id_entry: int, api_key: str = Hea
 @app.put("/api/entry/update")
 async def update_comment(id_check: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    await(validate_permissions(id_check, [ProfileEnum.STUDENT.value]))
+    await(validate_permissions(id_check, [ProfileEnum.STUDENT.value, ProfileEnum.LABOR.value]))
     return update_entry_from_db(updated_fields)
 
 ########## AGREEMENT ##########
@@ -382,10 +382,10 @@ async def delete_agreement(id_check: int, id_agreement: int, api_key: str = Head
 
 # Update agreement
 @app.put("/api/agreement/update")
-async def update_agreement(id_check: int, id_agreement: int, updated_fields: dict, api_key: str = Header(...)):
+async def update_agreement(id_check: int, id_agreement: int, id_student: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
-    return update_agreement_from_db(id_agreement, updated_fields)
+    return update_agreement_from_db(id_agreement, id_student, updated_fields)
 
 ########## SCHOLAR YEAR ##########
 

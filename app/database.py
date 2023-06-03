@@ -894,7 +894,15 @@ def delete_agreement_from_db(id_agreement: int):
     return delete_row(T_AGREEMENT, ID_NAME_AGREEMENT, id_agreement)
 
 # Update agreement
-def update_agreement_from_db(id_agreement: int, updated_fields: dict):
+def update_agreement_from_db(id_agreement: int, id_student: int, updated_fields: dict):
+
+    conn, cursor = get_conn_and_cursor()
+    query = f"UPDATE {T_STUDENT_SCHOLAR_YEAR} SET {ID_NAME_AGREEMENT} = NULL WHERE {ID_NAME_AGREEMENT} = {id_agreement}"
+    cursor.execute(query)
+    conn.commit()
+    query = f"UPDATE {T_STUDENT_SCHOLAR_YEAR} SET {ID_NAME_AGREEMENT} = {id_agreement} WHERE {ID_NAME_STUDENT} = {id_student}"
+    cursor.execute(query)
+    do_commit(conn, cursor)
     return update_table(T_AGREEMENT, ID_NAME_AGREEMENT, id_agreement, updated_fields)
 
 ########## SCHOLAR YEAR ##########
