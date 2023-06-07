@@ -179,7 +179,7 @@ INSERT INTO `module` (`idModule`, `name`, `initials`, `hours`, `description`, `i
 (26, 'Análisis Forense', 'AFOR', NULL, '', 7),
 (27, 'Normativa de Ciberseguridad', 'NOR', NULL, '', 7),
 (28, 'Puesta en Producción Segura', 'PPS', NULL, '', 7),
-(29, 'Modelos de Inteligencia Artificial\r\n', 'MIA', 3, '', 8),
+(29, 'Modelos de Inteligencia Artificial', 'MIA', 3, '', 8),
 (30, 'Sistemas de Aprendizaje Automático', 'SAA', 3, '', 8),
 (31, 'Programación de Inteligencia Artificial', 'PIA', 7, '', 8),
 (32, 'Sistemas de Big Data', 'SBD', 3, '', 8),
@@ -294,10 +294,10 @@ CREATE TABLE `item` (
 
 INSERT INTO `item` (`idItem`, `name`) VALUES
 (1, 'Puntualidad'),
-(2, 'Habilidades y detrezas'),
+(2, 'Habilidades y destrezas'),
 (3, 'Ténicas y procedimientos'),
 (4, 'Competencias profesionales'),
-(5, 'Relaciones con el equipo de trabajo y detrezas');
+(5, 'Relaciones con el equipo de trabajo');
 
 --
 -- Estructura de tabla para la tabla `report_item`
@@ -307,7 +307,7 @@ CREATE TABLE `report_item` (
   `idReport` int(11) NOT NULL,
   `idItem` int(11) NOT NULL,
   `grade` enum('No score','1','2','3','4','5') NOT NULL,
-  `observation` text NULL
+  `observation` text NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
@@ -318,7 +318,7 @@ CREATE TABLE `report_module` (
   `idReport` int(11) NOT NULL,
   `idModule` int(11) NOT NULL,
   `grade` enum('No score','1','2','3','4','5') NOT NULL,
-  `observation` text NULL
+  `observation` text NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 

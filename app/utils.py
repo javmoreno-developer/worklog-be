@@ -41,12 +41,11 @@ def get_update_query_and_values(table_name: str, id_name: str, id_value, updated
     updated_fields.pop("isActive", None)
 
     for key, value in updated_fields.items():
-        if value is not None:
-            if key == "hours":
-                query += f" {key} = SEC_TO_TIME(%s),"
-            else:
-                query += f" {key} = %s,"
-            values.append(value)
+        if key == "hours":
+            query += f" {key} = SEC_TO_TIME(%s),"
+        else:
+            query += f" {key} = %s,"
+        values.append(value)
 
     # Remove the last comma and add the WHERE clause
     query = query.rstrip(",") + f" WHERE {id_name} = %s"

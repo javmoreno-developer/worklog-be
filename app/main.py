@@ -17,7 +17,8 @@ origins = [
     "http://localhost",
     "http://localhost:4200",
     "http://192.168.1.57",
-    "http://192.168.100.14"
+    "http://192.168.100.14",
+    "http://192.168.18.168"
 ]
 
 app.add_middleware(
@@ -468,3 +469,31 @@ async def drop_database(id_check: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
     return drop_db()
+
+# Student has agreement
+@app.get("/api/user/has-agreement")
+async def student_has_agreement(id_check: int, id_student: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.STUDENT.value]))
+    id_current_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+    return student_has_an_agreement(id_student, id_current_year)
+
+# Get items
+@app.get("/api/item/get/all")
+async def get_all_items(id_check: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.LABOR.value]))
+    return get_all_items_from_db()
+
+# Add or update report
+@app.put("/api/report/add-update")
+async def add_or_update_report(id_check: int, id_student: int, updated_fields: dict, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.LABOR.value, ProfileEnum.TEACHER.value]))
+    return add_or_update_report_from_db(id_student, updated_fields)
+
+@app.get("/api/report/get")
+async def get_report(id_check: int, id_student: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.LABOR.value, ProfileEnum.TEACHER.value]))
+    return get_report_from_db(id_student)
