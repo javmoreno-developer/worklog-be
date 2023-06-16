@@ -430,8 +430,8 @@ async def update_agreement(id_check: int, id_agreement: int, id_student: int, up
 @app.get("/api/agreement/stadistic")
 async def agreement_stadistic(id_check: int,api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    profile = await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
-    return agreement_stadistic_from_db(id_check,profile)
+    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    return agreement_stadistic_from_db()
 
 ########## SCHOLAR YEAR ##########
 
