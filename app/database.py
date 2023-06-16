@@ -88,6 +88,7 @@ def get_disabled_users_from_db():
 # Get disabled users
 def get_students_with_no_agreement_from_db():
     conn, cursor = get_conn_and_cursor()
+    print(get_current_scholar_year_from_db())
     id_current_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
     query = f"SELECT {ID_NAME_STUDENT} FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_SCHOLAR_YEAR} = {id_current_year} AND {ID_NAME_AGREEMENT} IS NULL"
     cursor.execute(query)
@@ -132,8 +133,7 @@ def get_profile_from_user(id_user: int):
 # Insert student
 def insert_student_to_db(user: UserCreate, id_unit: int):
     # Insert user and get id
-    id_student = insert_user_to_db(user, ProfileEnum.STUDENT, StatusEnum.DISABLED)
-
+    id_student = insert_user_to_db(user)
     # Get current scholar year and assign the unit and scholar year to the student
     conn, cursor = get_conn_and_cursor()
     scholar_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
@@ -143,8 +143,16 @@ def insert_student_to_db(user: UserCreate, id_unit: int):
     do_commit(conn, cursor)
     return {"message": "Student inserted successfully"}
 
+# Insert teacher
+def insert_teacher_to_db(user: UserCreate):
+    # Insert user and get id
+    id_student = insert_user_to_db(user)
+
+   
+    return {"message": "Teacher inserted successfully"}
+
 # Insert user
-def insert_user_to_db(user: UserCreate, profile: ProfileEnum, status: StatusEnum):
+def insert_user_to_db(user: UserCreate):
 
     try:
         # Check if email, name, and surname fields are not empty
@@ -176,8 +184,8 @@ def insert_user_to_db(user: UserCreate, profile: ProfileEnum, status: StatusEnum
             user.linkedin,
             user.github,
             user.twitter,
-            profile.value,
-            status.value
+            user.profile,
+            0
         )
 
         # Execute query
@@ -700,7 +708,7 @@ def get_all_rows_condition(table_name: str, condition: str, value):
         column_names = [col[0] for col in cursor.fetchall()]
 
         # Query to get all rows
-        select_all_rows_query = f"SELECT * FROM {table_name} WHERE {condition} = {value}"
+        select_all_rows_query = f"SELECT * FROM {table_name} WHERE {condition} = '{value}'"
 
         # Execute query to retrieve all rows
         cursor.execute(select_all_rows_query)
@@ -1103,43 +1111,47 @@ def is_student_under_labor_tutor(id_laboral_tutor: int, id_student: int):
     return True
 
 # Get unit,scholar year and agreement from a user
-def get_rows_of_students_from_db(students: dict,id_check: int):
+def get_rows_of_students_from_db(students: dict, id_check: int):
     result = []
+
+    conn, cursor = get_conn_and_cursor()  # Open the connection and get the cursor outside the loop
 
     for user in students:
         localResult = {}
         student = user.dict()
-        #return student["name"]
-    
-        # Obtain id of every data that we want
-        query = f"SELECT * FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_STUDENT} = %s"
-        values = (student["idUser"],)  # Colocamos el ID del estudiante dentro de una tupla
 
-        conn, cursor = get_conn_and_cursor()
+        # Obtain the ID of the student
+        query = f"SELECT * FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_STUDENT} = %s"
+        values = (student["idUser"],)
         cursor.execute(query, values)
         id_collection = cursor.fetchone()
-        close_conn_and_cursor(conn, cursor)
 
-        ## obtain unit 
+        # Close the previous result before executing the next query
+        cursor.fetchall()
+
+        # Obtain unit
         unitRow = get_unit_from_db(id_collection[3])
         unit = str(unitRow["level"]) + unitRow["initials"]
 
-        ## obtain scholar year
+        # Obtain scholar year
         scholarRow = get_scholar_year_from_db(id_collection[2])
         scholar = scholarRow["year"]
 
-        ## obtain agreement
-        ##agreementRow = get_agreement_from_db(id_check,id_collection[4],ProfileEnum.ADMIN.value)
-        ##agreement = agreementRow["agreementType"]
+        # Obtain agreement
+        # agreementRow = get_agreement_from_db(id_check, id_collection[4], ProfileEnum.ADMIN.value)
+        # agreement = agreementRow["agreementType"]
 
-        ## map the result
+        # Map the result
         localResult["unit"] = unit
         localResult["scholar_year"] = scholar
-        ##localResult["agreement"] = agreement
+        # localResult["agreement"] = agreement
 
         result.append(localResult)
 
+    close_conn_and_cursor(conn, cursor)  # Close the connection and cursor after the loop
+
     return result
+
 
 def get_all_module_initials_from_db(modules: dict):
     result = []
@@ -1185,124 +1197,64 @@ def get_table_of_agreements_from_db(id_check: int,id_agreement: int, id_company:
 def get_user_by_agreement_from_db(id_agreement: int):
     return get_all_rows_condition(T_STUDENT_SCHOLAR_YEAR, "idAgreement", id_agreement)
 
-########## ITEM ##########
+def agreement_stadistic_from_db(id_check: int,profile: str):
+    result = {} 
+    dual = 0
+    fct = 0
+    all = 0
 
-def get_all_items_from_db():
-    return get_all_rows(T_ITEM)
+    rows = get_all_rows(T_AGREEMENT)
+    for row in rows:
+        if(row["agreementType"] == 'dual'):
+            dual+=1
+        elif(row["agreementType"] == 'fct'):
+            fct +=1
+        else:
+            all+=1
+        
+    result["dual"] = dual
+    result["fct"] = fct
+    result["fctDual"] = all
+    return result
 
-def add_or_update_report_from_db(id_student: int, report_fields: dict):
+def user_stadistic_from_db(id_check: int,profile: str):
+    result = {} 
+    students = 0
+    teachers = 0
+    labors = 0
 
-    conn, cursor = get_conn_and_cursor()
+    rows = get_all_rows(T_USER)
+    for row in rows:
+        if(row["profile"] == '2'):
+            students +=1
+        elif(row["profile"] == '3'):
+            teachers +=1
+        elif(row["profile"] == '4'):
+            labors +=1
+        
+    result["students"] = students
+    result["teachers"] = teachers
+    result["labors"] = labors
+    return result
 
-    item_reports = report_fields.get("item_reports", [])
-    module_reports = report_fields.get("module_reports", [])
+def get_students_from_unit(id_unit: int, id_check: int,profile: str):
+    #return get_all_rows_condition(T_STUDENT_SCHOLAR_YEAR, "idUnit", id_unit)
+    id_group = get_all_rows_condition(T_STUDENT_SCHOLAR_YEAR, "idUnit", id_unit)
+    result = []
+    for id_student in id_group:
+        result.append(get_user_from_db(id_check,id_student["idStudent"],profile))
+    return result
 
-    # Get the agreement ID based in the student id
-    query = f"SELECT {ID_NAME_AGREEMENT} FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_STUDENT} = {id_student}"
-    cursor.execute(query)
+def get_user_by_agreement_type_from_db(agreement_type: AgreementTypeEnum,id_check: int,profile: str):
+   studentGroup = []
+   result = []
+   ## Get all the idAgreements by type
+   id_group = get_all_rows_condition(T_AGREEMENT, "agreementType", agreement_type.value)
+   for agreement in id_group:
+    studentGroup.append(get_user_by_agreement_from_db(agreement["idAgreement"]))
 
-    id_agreement = cursor.fetchone()[0]
-    cursor.reset()
-    print(id_agreement)
+    ## Get all students by id
+   for idStudent in studentGroup:
+    result.append(get_user_from_db(id_check,idStudent[0]["idStudent"],profile))
 
-    if id_agreement:
-        # Get the report if exists
-        query = f"SELECT * FROM {T_REPORT} WHERE {ID_NAME_AGREEMENT} = {id_agreement}"
-        cursor.execute(query)
-        result = cursor.fetchone()
-        cursor.reset()
-        print(result)
-    else:
-        raise HTTPException(status_code=400, detail="Agreement not found")
-
-    if result:
-        # Report exists, update the row
-        # Get the report ID to find the items in the report_items and report_modules table
-        get_report_query = f"SELECT {ID_NAME_REPORT} FROM {T_REPORT} WHERE {ID_NAME_AGREEMENT} = {id_agreement}"
-        cursor.execute(get_report_query)
-        id_report = cursor.fetchone()[0]
-        cursor.reset()
-        # Update the report_item table
-        for item_report in item_reports:
-            id_item = item_report.get("id_item")
-            query = f"UPDATE {T_REPORT_ITEM} SET grade = %s, observation = %s WHERE {ID_NAME_REPORT} = {id_report} AND {ID_NAME_ITEM} = {id_item}"
-            grade = item_report.get("grade")
-            if grade is None:
-                grade = "No score"
-            observation = item_report.get("observation")
-            values = (grade, observation)
-            cursor.execute(query, values)
-        conn.commit()
-        # Update the report_module table
-        for module_report in module_reports:
-            id_module = module_report.get("id_module")
-            query = f"UPDATE {T_REPORT_MODULE} SET grade = %s, observation = %s WHERE {ID_NAME_REPORT} = {id_report} AND {ID_NAME_MODULE} = {id_module}"
-            grade = module_report.get("grade")
-            if grade is None:
-                grade = "No score"
-            observation = module_report.get("observation")
-            values = (grade, observation)
-            cursor.execute(query, values)
-        do_commit(conn, cursor)
-        print("Row updated successfully")
-    else:
-        # Report doesn't exist, create a new one
-        query = f"INSERT INTO {T_REPORT} (idAgreement) VALUES (%s)"
-        values = (id_agreement, )
-        cursor.execute(query, values)
-        conn.commit()
-        id_report = cursor.lastrowid
-        # Create all report items
-        query = f"INSERT INTO {T_REPORT_ITEM} (idReport, idItem, grade, observation) VALUES (%s, %s, %s, %s)"
-        for item_report in item_reports:
-            id_item = item_report.get("id_item")
-            grade = item_report.get("grade")
-            if grade is None:
-                grade = "No score"
-            observation = item_report.get("observation")
-            values = (id_report, id_item, grade, observation)
-            cursor.execute(query, values)
-        conn.commit()
-        # Create all report modules
-        query = f"INSERT INTO {T_REPORT_MODULE} (idReport, idModule, grade, observation) VALUES (%s, %s, %s, %s)"
-        for module_report in module_reports:
-            id_module = module_report.get("id_module")
-            grade = module_report.get("grade")
-            if grade is None:
-                grade = "No score"
-            observation = module_report.get("observation")
-            values = (id_report, id_module, grade, observation)
-            cursor.execute(query, values)
-        do_commit(conn, cursor)
-        print("Row inserted successfully")
-
-def get_report_from_db(id_student: int):
-
-    conn, cursor = get_conn_and_cursor()
-
-    id_current_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
-
-    # Get the agreement ID based in the student id
-    query = f"SELECT {ID_NAME_AGREEMENT} FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_STUDENT} = {id_student} AND {ID_NAME_SCHOLAR_YEAR} = {id_current_year}"
-    cursor.execute(query)
-    id_agreement = cursor.fetchone()[0]
-    cursor.reset()
-    print(id_agreement)
-
-    if id_agreement:
-        # Get the ID of the report if exists
-        query = f"SELECT {ID_NAME_REPORT} FROM {T_REPORT} WHERE {ID_NAME_AGREEMENT} = {id_agreement}"
-        cursor.execute(query)
-        id_report = cursor.fetchone()[0]
-        cursor.reset()
-        print(id_report)
-    else:
-        raise HTTPException(status_code=404, detail="This student does not have an agreement")
-    
-    if id_report:
-        report_items_list = get_all_rows_condition(T_REPORT_ITEM, ID_NAME_REPORT, id_report)
-        report_modules_list = get_all_rows_condition(T_REPORT_MODULE, ID_NAME_REPORT, id_report)
-        close_conn_and_cursor(conn, cursor)
-        return {"items": report_items_list, "modules": report_modules_list}
-    else:
-        raise HTTPException(status_code=404, detail="This student does not have a report")
+   return result
