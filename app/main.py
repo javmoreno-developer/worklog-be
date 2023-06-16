@@ -106,7 +106,7 @@ async def get_my_students_labor(id_check: int, api_key: str = Header(...)):
 @app.post("/api/user/get/row")
 async def get_rows_of_students(id_check: int, students: List[User],api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
+    await(validate_permissions(id_check, [ProfileEnum.TEACHER.value,ProfileEnum.LABOR.value]))
     return get_rows_of_students_from_db(students,id_check)
 
 
@@ -258,7 +258,7 @@ async def get_unit(id_check: int, id_unit: int, api_key: str = Header(...)):
 @app.get("/api/unit/get/all")
 async def get_all_units(id_check: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
+    await(validate_permissions(id_check, [ProfileEnum.TEACHER.value,ProfileEnum.LABOR.value]))
     return get_all_units_from_db()
 
 # Add unit
