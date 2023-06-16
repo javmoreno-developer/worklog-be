@@ -1257,4 +1257,105 @@ def get_user_by_agreement_type_from_db(agreement_type: AgreementTypeEnum,id_chec
    for idStudent in studentGroup:
     result.append(get_user_from_db(id_check,idStudent[0]["idStudent"],profile))
 
-   return result
+    if id_agreement:
+        # Get the report if exists
+        query = f"SELECT * FROM {T_REPORT} WHERE {ID_NAME_AGREEMENT} = {id_agreement}"
+        cursor.execute(query)
+        result = cursor.fetchone()
+        cursor.reset()
+        print(result)
+    else:
+        raise HTTPException(status_code=400, detail="Agreement not found")
+
+    if result:
+        # Report exists, update the row
+        # Get the report ID to find the items in the report_items and report_modules table
+        query = f"SELECT {ID_NAME_REPORT} FROM {T_REPORT} WHERE {ID_NAME_AGREEMENT} = {id_agreement}"
+        cursor.execute(query)
+        id_report = cursor.fetchone()[0]
+        cursor.reset()
+        # Update the report_item table
+        for item_report in item_reports:
+            id_item = item_report.get("idItem")
+            query = f"UPDATE {T_REPORT_ITEM} SET grade = %s, observation = %s WHERE {ID_NAME_REPORT} = {id_report} AND {ID_NAME_ITEM} = {id_item}"
+            grade = item_report.get("grade")
+            if grade is 0:
+                grade = None
+            observation = item_report.get("observation")
+            print(item_report)
+            values = (grade, observation)
+            cursor.execute(query, values)
+        conn.commit()
+        # Update the report_module table
+        for module_report in module_reports:
+            id_module = module_report.get("idModule")
+            query = f"UPDATE {T_REPORT_MODULE} SET grade = %s, observation = %s WHERE {ID_NAME_REPORT} = {id_report} AND {ID_NAME_MODULE} = {id_module}"
+            grade = module_report.get("grade")
+            if grade is 0:
+                grade = None
+            observation = module_report.get("observation")
+            values = (grade, observation)
+            cursor.execute(query, values)
+        do_commit(conn, cursor)
+        print("Row updated successfully")
+    else:
+        # Report doesn't exist, create a new one
+        query = f"INSERT INTO {T_REPORT} (idAgreement) VALUES (%s)"
+        values = (id_agreement, )
+        cursor.execute(query, values)
+        conn.commit()
+        id_report = cursor.lastrowid
+        # Create all report items
+        query = f"INSERT INTO {T_REPORT_ITEM} (idReport, idItem, grade, observation) VALUES (%s, %s, %s, %s)"
+        for item_report in item_reports:
+            id_item = item_report.get("idItem")
+            grade = item_report.get("grade")
+            if grade is 0:
+                grade = None
+            observation = item_report.get("observation")
+            values = (id_report, id_item, grade, observation)
+            cursor.execute(query, values)
+        conn.commit()
+        # Create all report modules
+        query = f"INSERT INTO {T_REPORT_MODULE} (idReport, idModule, grade, observation) VALUES (%s, %s, %s, %s)"
+        for module_report in module_reports:
+            id_module = module_report.get("idModule")
+            grade = module_report.get("grade")
+            if grade is 0:
+                grade = None
+            observation = module_report.get("observation")
+            values = (id_report, id_module, grade, observation)
+            cursor.execute(query, values)
+        do_commit(conn, cursor)
+        print("Row inserted successfully")
+
+def get_report_from_db(id_student: int):
+
+    conn, cursor = get_conn_and_cursor()
+
+    id_current_year = get_current_scholar_year_from_db().get(ID_NAME_SCHOLAR_YEAR)
+
+    # Get the agreement ID based in the student id
+    query = f"SELECT {ID_NAME_AGREEMENT} FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_STUDENT} = {id_student} AND {ID_NAME_SCHOLAR_YEAR} = {id_current_year}"
+    cursor.execute(query)
+    id_agreement = cursor.fetchone()[0]
+    cursor.reset()
+    print(id_agreement)
+
+    if id_agreement:
+        # Get the ID of the report if exists
+        query = f"SELECT {ID_NAME_REPORT} FROM {T_REPORT} WHERE {ID_NAME_AGREEMENT} = {id_agreement}"
+        cursor.execute(query)
+        result = cursor.fetchone()
+        cursor.reset()
+    else:
+        raise HTTPException(status_code=404, detail="This student does not have an agreement")
+    
+    if result:
+        id_report = result[0]
+        report_items_list = get_all_rows_condition(T_REPORT_ITEM, ID_NAME_REPORT, id_report)
+        report_modules_list = get_all_rows_condition(T_REPORT_MODULE, ID_NAME_REPORT, id_report)
+        close_conn_and_cursor(conn, cursor)
+        return {"report_items": report_items_list, "report_modules": report_modules_list}
+    else:
+        raise HTTPException(status_code=404, detail="This student does not have a report")
