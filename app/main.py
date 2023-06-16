@@ -65,12 +65,28 @@ async def get_user_by_agreement(id_check: int, id_agreement: int, api_key: str =
     profile = await(validate_permissions(id_check, permissions))
     return get_user_by_agreement_from_db(id_agreement)
 
+# Get student by a type of agreement
+@app.get("/api/user/get/agreement-type")
+async def get_user_by_agreement_type(id_check: int, agreement_type: AgreementTypeEnum, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    permissions = [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]
+    profile = await(validate_permissions(id_check, permissions))
+    return get_user_by_agreement_type_from_db(agreement_type,id_check,profile)
+
 # Get students
 @app.get("/api/user/get/students")
 async def get_students(id_check: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
     return get_students_from_db()
+
+# Get students from a unit
+@app.get("/api/user/get/unit-students")
+async def get_unit_students(id_check: int,id_unit: int, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    #await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
+    profile = await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
+    return get_students_from_unit(id_unit,id_check,profile)
 
 # Get my students (TEACHER)
 @app.get("/api/user/get/teacher-students")
@@ -90,7 +106,7 @@ async def get_my_students_labor(id_check: int, api_key: str = Header(...)):
 @app.post("/api/user/get/row")
 async def get_rows_of_students(id_check: int, students: List[User],api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
     return get_rows_of_students_from_db(students,id_check)
 
 
@@ -131,17 +147,17 @@ async def add_student(id_check: int, student: UserCreate, id_unit: int, api_key:
 
 # Add teacher ## MIRAR CONTRASEÑA
 @app.post("/api/user/add-teacher")
-async def add_teacher(id_check: int, teacher: UserCreate, api_key: str = Header(...)):
+async def add_teacher(id_check: int,teacher: UserCreate, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
-    return insert_user_to_db(teacher, ProfileEnum.TEACHER, StatusEnum.ENABLED)
+    return insert_teacher_to_db(teacher)
 
 # Add laboral tutor ## MIRAR CONTRASEÑA
 @app.post("/api/user/add-labor")
 async def add_labor(id_check: int, labor: UserCreate, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
-    return insert_user_to_db(labor, ProfileEnum.LABOR, StatusEnum.ENABLED)
+    return insert_user_to_db(labor)
 
 # Add students set by XML ## MIRAR CONTRASEÑA
 @app.post("/api/user/add-students-set")
@@ -184,6 +200,13 @@ async def login(auth: LoginCreate, api_key: str = Header(...)):
 async def send_email_for_reset(email: EmailCreate, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     return send_email(email.email)
+
+# Get stadistic of agreementType
+@app.get("/api/user/stadistic")
+async def user_stadistic(id_check: int,api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    profile = await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    return user_stadistic_from_db(id_check,profile)
 
 ########## COMPANY ##########
 
@@ -235,7 +258,7 @@ async def get_unit(id_check: int, id_unit: int, api_key: str = Header(...)):
 @app.get("/api/unit/get/all")
 async def get_all_units(id_check: int, api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
     return get_all_units_from_db()
 
 # Add unit
@@ -402,6 +425,13 @@ async def update_agreement(id_check: int, id_agreement: int, id_student: int, up
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value]))
     return update_agreement_from_db(id_agreement, id_student, updated_fields)
+
+# Get stadistic of agreement
+@app.get("/api/agreement/stadistic")
+async def agreement_stadistic(id_check: int,api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    profile = await(validate_permissions(id_check, [ProfileEnum.ADMIN.value]))
+    return agreement_stadistic_from_db(id_check,profile)
 
 ########## SCHOLAR YEAR ##########
 
