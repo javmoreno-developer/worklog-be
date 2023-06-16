@@ -306,7 +306,7 @@ INSERT INTO `item` (`idItem`, `name`) VALUES
 CREATE TABLE `report_item` (
   `idReport` int(11) NOT NULL,
   `idItem` int(11) NOT NULL,
-  `grade` int(1) NULL DEFAULT NULL,
+  `grade` enum('No score','1','2','3','4','5') NOT NULL,
   `observation` text NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -317,20 +317,12 @@ CREATE TABLE `report_item` (
 CREATE TABLE `report_module` (
   `idReport` int(11) NOT NULL,
   `idModule` int(11) NOT NULL,
-  `grade` int(1) NULL DEFAULT NULL,
+  `grade` enum('No score','1','2','3','4','5') NOT NULL,
   `observation` text NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- --------------------------------------------------------
-
-ALTER TABLE `report_item`
-ADD CONSTRAINT `check_item_grade`
-CHECK (`grade` IN (1, 2, 3, 4, 5));
-
-ALTER TABLE `report_module`
-ADD CONSTRAINT `check_module_grade`
-CHECK (`grade` IN (1, 2, 3, 4, 5));
 
 --
 -- Índices para tablas volcadas
