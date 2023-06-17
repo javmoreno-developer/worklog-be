@@ -487,8 +487,13 @@ def insert_entry_to_db(id_student: int):
     query = f"SELECT {ID_NAME_AGREEMENT} FROM {T_STUDENT_SCHOLAR_YEAR} WHERE {ID_NAME_SCHOLAR_YEAR} = %s AND {ID_NAME_STUDENT} = %s"
     values = (id_current_year, id_student)
     cursor.execute(query, values)
-    id_agreement = cursor.fetchone()[0]
+    result = cursor.fetchone()
     cursor.reset()
+    print(result)
+    if result[0] != None:
+        id_agreement = result[0]
+    else:
+        raise HTTPException(status_code=404, detail="Agreement not found")
 
     # Get the current date
     today = datetime.today().date()
@@ -833,7 +838,7 @@ def get_all_agreements_from_db(id_check: int, complete: bool,profile: str):
             #get_table_of_agreements_from_db(id_check: int,id_company: int, id_labor: int, id_teacher: int,profile: str):
             #get_table_of_agreements_from_db(id_check: int,id_agreement: int, id_company: int, id_labor: int, id_teacher: int, profile: str):
 
-            data = get_table_of_agreements_from_db(id_check,row["idAgreement"],row["idCompany"],row["idLabor"],row["idTeacher"],profile)
+            data = get_table_of_agreements_from_db(id_check, row["idAgreement"], row["idCompany"], row["idLabor"], row["idTeacher"], profile)
             row["data"]= data
             result.append(row)
         return result
@@ -1111,9 +1116,9 @@ def is_student_under_labor_tutor(id_laboral_tutor: int, id_student: int):
     return True
 
 # Get unit,scholar year and agreement from a user
-def get_rows_of_students_from_db(students: dict, id_check: int):
-    result = []
+def get_rows_of_students_from_db(students: dict):
 
+    result = []
     conn, cursor = get_conn_and_cursor()  # Open the connection and get the cursor outside the loop
 
     for user in students:
@@ -1125,13 +1130,16 @@ def get_rows_of_students_from_db(students: dict, id_check: int):
         values = (student["idUser"],)
         cursor.execute(query, values)
         id_collection = cursor.fetchone()
+        print(student["idUser"])
+        print(id_collection)
+        print(cursor.fetchall())
 
         # Close the previous result before executing the next query
         cursor.fetchall()
 
         # Obtain unit
         unitRow = get_unit_from_db(id_collection[3])
-        unit = str(unitRow["level"]) + unitRow["initials"]
+        unit = str(unitRow["level"]) + " " + unitRow["initials"]
 
         # Obtain scholar year
         scholarRow = get_scholar_year_from_db(id_collection[2])
@@ -1154,21 +1162,24 @@ def get_rows_of_students_from_db(students: dict, id_check: int):
 
 # Get module initials
 def get_all_module_initials_from_db(modules: dict):
+
     result = []
-    for module in modules:
-        localResult = {}
-        #return student["name"]
-    
+
+    for module in modules:   
         # Obtain id of every data that we want
         query = f"SELECT * FROM {T_UNIT} WHERE {ID_NAME_UNIT} = %s"
-        values = (module,)  # Colocamos el ID del modulo dentro de una tupla
+        values = (module,)
 
         conn, cursor = get_conn_and_cursor()
         cursor.execute(query, values)
         collection = cursor.fetchone()
         close_conn_and_cursor(conn, cursor)
         if collection is not None and len(collection) > 3:
-            result.append(collection[3])
+            print(collection)
+            print(collection[0])
+            initials = f"{collection[1]} {collection[3]}"
+            result.append(initials)
+
     return result
 
 def get_table_of_agreements_from_db(id_check: int,id_agreement: int, id_company: int, id_labor: int, id_teacher: int, profile: str):

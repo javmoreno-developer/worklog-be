@@ -107,7 +107,7 @@ async def get_my_students_labor(id_check: int, api_key: str = Header(...)):
 async def get_rows_of_students(id_check: int, students: List[User],api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.TEACHER.value,ProfileEnum.LABOR.value]))
-    return get_rows_of_students_from_db(students,id_check)
+    return get_rows_of_students_from_db(students)
 
 
 # Get students with no agreement this scholar year
