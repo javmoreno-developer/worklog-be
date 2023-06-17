@@ -376,10 +376,10 @@ async def get_comments_of_entry(id_check: int, id_entry: int, api_key: str = Hea
 
 ## Update comment CHANGE TO UPDATE ENTIRE ENTRY
 @app.put("/api/entry/update")
-async def update_comment(id_check: int, updated_fields: dict, api_key: str = Header(...)):
+async def update_comment(id_check: int,id_comment: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.STUDENT.value, ProfileEnum.LABOR.value]))
-    return update_entry_from_db(updated_fields)
+    return update_entry_from_db(id_comment,updated_fields)
 
 ########## AGREEMENT ##########
 

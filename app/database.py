@@ -572,15 +572,15 @@ def get_comments_of_entry_from_db(id_entry: int):
         raise HTTPException(status_code=401, detail="Permission denied")
 
 # Update entry
-def update_entry_from_db(updated_fields: dict):
+def update_entry_from_db(id_comment: int,updated_fields: dict):
 
-    for _, comment_data in updated_fields.items():
+    """for _, comment_data in updated_fields.items():
         comment_data.pop("expandable")
         id_comment = comment_data['idComment']
         update_table(T_COMMENT, ID_NAME_COMMENT, id_comment, comment_data)
 
-    return {"message": "Comments updated successfully"}
-    
+    return {"message": "Comments updated successfully"}"""
+    return update_table(T_COMMENT, ID_NAME_COMMENT, id_comment, updated_fields)
 
 
 
