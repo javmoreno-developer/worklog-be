@@ -18,7 +18,8 @@ origins = [
     "http://localhost:4200",
     "http://192.168.1.57",
     "http://192.168.100.14",
-    "http://192.168.18.168"
+    "http://192.168.18.168",
+    "http://192.168.100.3"
 ]
 
 app.add_middleware(
@@ -199,7 +200,7 @@ async def login(auth: LoginCreate, api_key: str = Header(...)):
 @app.post("/api/user/send-email")
 async def send_email_for_reset(email: EmailCreate, api_key: str = Header(...)):
     await(validate_api_key(api_key))
-    return send_email(email.email)
+    return send_email(email.email, "", False)
 
 # Get stadistic of agreementType
 @app.get("/api/user/stadistic")

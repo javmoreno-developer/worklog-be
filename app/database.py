@@ -140,15 +140,16 @@ def insert_student_to_db(user: UserCreate, id_unit: int):
     query = f"INSERT INTO {T_STUDENT_SCHOLAR_YEAR} (idStudent, idScholarYear, idUnit) VALUES (%s, %s, %s)"
     values = (id_student, scholar_year, id_unit)
     cursor.execute(query, values)
-    do_commit(conn, cursor)
+    conn.commit()
+    if cursor.lastrowid != 0 or cursor.lastrowid != None:
+        send_email(user.email, user.password, True)
+    close_conn_and_cursor(conn, cursor)
     return {"message": "Student inserted successfully"}
 
 # Insert teacher
 def insert_teacher_to_db(user: UserCreate):
     # Insert user and get id
-    id_student = insert_user_to_db(user)
-
-   
+    insert_user_to_db(user)   
     return {"message": "Teacher inserted successfully"}
 
 # Insert user
@@ -171,6 +172,11 @@ def insert_user_to_db(user: UserCreate):
         if result:
             # Email exists
             raise HTTPException(status_code=409, detail="Error adding user, email already registered")
+        
+        if user.profile == ProfileEnum.STUDENT.value:
+            isActive = StatusEnum.DISABLED.value
+        else:
+            isisActive = StatusEnum.ENABLED.value
 
         # Query
         query = f"INSERT INTO {T_USER} (name, surname, email, password, picture, linkedin, github, twitter, profile, isActive) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
@@ -186,12 +192,17 @@ def insert_user_to_db(user: UserCreate):
             user.github,
             user.twitter,
             user.profile,
-            0
+            isActive
         )
 
         # Execute query
         cursor.execute(query, values)
-        do_commit(conn, cursor)
+        conn.commit()
+
+        if cursor.lastrowid != 0 or cursor.lastrowid != None:
+            send_email(user.email, user.password, True)
+
+        close_conn_and_cursor(conn, cursor)
         return cursor.lastrowid
 
     except IntegrityError as e:

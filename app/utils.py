@@ -53,7 +53,7 @@ def get_update_query_and_values(table_name: str, id_name: str, id_value, updated
 
     return query, values
 
-def send_email(emailReceiver: str):
+def send_email(emailReceiver: str, password: str, isAdding: bool = False):
     # Check if the email exists in the database
     exist = False
     user = check_user_by_email(emailReceiver)
@@ -66,9 +66,13 @@ def send_email(emailReceiver: str):
         sender_email = "javmoreno766@gmail.com"
         sender_password = "fluyetbuhqxpicsv"
         receiver_email = emailReceiver
-        subject = "Recuperar contraseña"
-        new_password = get_new_password()
-        body = "Nueva contraseña: {}". format(new_password)
+        if isAdding:
+            subject = "Bienvenido a WorkLog"
+            new_password = password
+        else:
+            subject = "Recuperar contraseña"
+            new_password = get_new_password()
+        body = "Esta es su nueva contraseña: {}". format(new_password)
 
         # Configura el mensaje del correo electrónico
         message = MIMEMultipart()
@@ -89,7 +93,7 @@ def send_email(emailReceiver: str):
         
         return {"message": "Email sent"}
     else:
-        raise HTTPException(status_code=404, detail="The user does not exist")
+        raise HTTPException(status_code=404, detail="This email is not registered")
     
 def import_mysql_database():
         
