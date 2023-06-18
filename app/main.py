@@ -374,12 +374,19 @@ async def get_comments_of_entry(id_check: int, id_entry: int, api_key: str = Hea
     await(validate_permissions(id_check, [ProfileEnum.STUDENT.value, ProfileEnum.TEACHER.value, ProfileEnum.LABOR.value]))
     return get_comments_of_entry_from_db(id_entry)
 
-## Update comment CHANGE TO UPDATE ENTIRE ENTRY
+## Update entry
 @app.put("/api/entry/update")
-async def update_comment(id_check: int,id_comment: int, updated_fields: dict, api_key: str = Header(...)):
+async def update_entry(id_check: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.STUDENT.value, ProfileEnum.LABOR.value]))
-    return update_entry_from_db(id_comment,updated_fields)
+    return update_entry_from_db(updated_fields)
+
+## Update comment
+@app.put("/api/comment/update")
+async def update_comment(id_check: int, id_comment: int, updated_fields: dict, api_key: str = Header(...)):
+    await(validate_api_key(api_key))
+    await(validate_permissions(id_check, [ProfileEnum.STUDENT.value, ProfileEnum.LABOR.value]))
+    return update_comment_from_db(id_comment, updated_fields)
 
 ########## AGREEMENT ##########
 
@@ -520,6 +527,7 @@ async def get_all_items(id_check: int, api_key: str = Header(...)):
 async def add_or_update_report(id_check: int, id_student: int, updated_fields: dict, api_key: str = Header(...)):
     await(validate_api_key(api_key))
     await(validate_permissions(id_check, [ProfileEnum.LABOR.value, ProfileEnum.TEACHER.value]))
+    print(updated_fields)
     return add_or_update_report_from_db(id_student, updated_fields)
 
 @app.get("/api/report/get")
