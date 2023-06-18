@@ -176,7 +176,7 @@ def insert_user_to_db(user: UserCreate):
         if user.profile == ProfileEnum.STUDENT.value:
             isActive = StatusEnum.DISABLED.value
         else:
-            isisActive = StatusEnum.ENABLED.value
+            isActive = StatusEnum.ENABLED.value
 
         # Query
         query = f"INSERT INTO {T_USER} (name, surname, email, password, picture, linkedin, github, twitter, profile, isActive) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
