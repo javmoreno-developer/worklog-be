@@ -153,7 +153,8 @@ def insert_teacher_to_db(user: UserCreate):
 
 # Insert user
 def insert_user_to_db(user: UserCreate):
-
+    ## Generate pass
+    user.password = get_new_password()
     try:
         # Check if email, name, and surname fields are not empty
         if not user.email or not user.name or not user.surname:
