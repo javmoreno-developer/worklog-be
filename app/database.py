@@ -1324,8 +1324,8 @@ def add_or_update_report_from_db(id_student: int, report_fields: dict):
             id_item = item_report.get("idItem")
             query = f"UPDATE {T_REPORT_ITEM} SET grade = %s, observation = %s WHERE {ID_NAME_REPORT} = {id_report} AND {ID_NAME_ITEM} = {id_item}"
             grade = item_report.get("grade")
-            if grade == 0:
-                grade = None
+            if grade == None:
+                grade = 0
             observation = item_report.get("observation")
             values = (grade, observation)
             cursor.execute(query, values)
@@ -1335,8 +1335,8 @@ def add_or_update_report_from_db(id_student: int, report_fields: dict):
             id_module = module_report.get("idModule")
             query = f"UPDATE {T_REPORT_MODULE} SET grade = %s, observation = %s WHERE {ID_NAME_REPORT} = {id_report} AND {ID_NAME_MODULE} = {id_module}"
             grade = module_report.get("grade")
-            if grade == 0:
-                grade = None
+            if grade == None:
+                grade = 0
             observation = module_report.get("observation")
             values = (grade, observation)
             cursor.execute(query, values)
@@ -1354,8 +1354,8 @@ def add_or_update_report_from_db(id_student: int, report_fields: dict):
         for item_report in item_reports:
             id_item = item_report.get("idItem")
             grade = item_report.get("grade")
-            if grade == 0:
-                grade = None
+            if grade == None:
+                grade = 0
             observation = item_report.get("observation")
             values = (id_report, id_item, grade, observation)
             cursor.execute(query, values)
@@ -1365,8 +1365,8 @@ def add_or_update_report_from_db(id_student: int, report_fields: dict):
         for module_report in module_reports:
             id_module = module_report.get("idModule")
             grade = module_report.get("grade")
-            if grade == 0:
-                grade = None
+            if grade == None:
+                grade = 0
             observation = module_report.get("observation")
             values = (id_report, id_module, grade, observation)
             cursor.execute(query, values)
